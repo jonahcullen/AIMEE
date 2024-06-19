@@ -5,6 +5,10 @@
 #' @import shiny
 #' @noRd
 app_server <- function(input, output, session) {
+  # source utility functions
+  source(system.file("R", "utils.R", package = "AIMEE"))
+  # load all data files
+  load_aimee_data("AIMEE")
   # Your application server logic
   mod_Home_server("Home_1")
   mod_Export_server("Export_1")
