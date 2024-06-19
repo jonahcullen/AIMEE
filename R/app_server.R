@@ -6,7 +6,15 @@
 #' @noRd
 app_server <- function(input, output, session) {
   # source utility functions
-  source(system.file("R/utils.R", local = TRUE))
+  # source(system.file("R", "utils.R", package = "AIMEE"))
+  load_aimee_data <- function(package) {
+    data_dir <- system.file("data", package = package)
+    rda_files <- list.files(data_dir, pattern = "\\.rda$", full.names = TRUE)
+    for (file in rda_files) {
+      load(file, envir = .GlobalEnv)
+      print(paste("Loaded:", file))
+    }
+  }
   # load all data files
   load_aimee_data("AIMEE")
   # Your application server logic
