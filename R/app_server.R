@@ -6,7 +6,7 @@
 #' @noRd
 app_server <- function(input, output, session) {
   # source utility functions
-  source(system.file("R", "utils.R", package = "AIMEE"))
+  source(system.file("R/utils.R", local = TRUE))
   # load all data files
   load_aimee_data("AIMEE")
   # Your application server logic
