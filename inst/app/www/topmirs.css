@@ -1,0 +1,4 @@
+/* increase spacing between awesomeRadio inline buttons for TopMirs module */
+.radio-inline {
+    margin-right: 20px; /* adjust the value to desired spacing */
+}

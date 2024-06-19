@@ -1,0 +1,40 @@
+Package: AIMEE
+Title: Animal IsomiR and MicroRNA Expression Explorer: Uniformly Processed
+    Small RNA-seq Dataset Exploration
+Version: 0.0.0.9000
+Authors@R: 
+    person("Jonah", "Cullen", , "cull0084@umn.edu", role = c("cre", "aut"))
+Description: Thjis is a placeholder.
+License: MIT + file LICENSE
+URL: https://github.com/jonahcullen/AIMEE.git
+BugReports: https://github.com/jonahcullen/AIMEE.git/issues
+Imports: 
+    config (>= 0.3.2),
+    dplyr,
+    DT,
+    forcats,
+    ggbeeswarm,
+    ggplot2,
+    golem (>= 0.4.1),
+    magrittr,
+    RColorBrewer,
+    rlang,
+    RobustRankAggreg,
+    scales,
+    shinipsum,
+    shiny (>= 1.7.5),
+    shinydashboard,
+    shinydashboardPlus,
+    shinyWidgets,
+    stringr,
+    tidyr
+Suggests: 
+    spelling,
+    testthat (>= 3.0.0)
+Config/testthat/edition: 3
+Encoding: UTF-8
+Language: en-US
+LazyData: true
+RoxygenNote: 7.1.2
+Depends: 
+    R (>= 2.10)

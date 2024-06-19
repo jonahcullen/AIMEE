@@ -1,0 +1,16 @@
+inst/doc
+docs
+inst/rstudio/.DS_Store
+**/.DS_Store
+*.DS_Store
+.Rproj.user
+.Rhistory
+.RData
+doc
+Meta
+revdep/
+README.html
+*.Rproj
+
+# temp files
+data-raw/bak
