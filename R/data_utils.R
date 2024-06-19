@@ -4,5 +4,6 @@ load_aimee_data <- function(package) {
   rda_files <- list.files(data_dir, pattern = "\\.rda$", full.names = TRUE)
   for (file in rda_files) {
     load(file, envir = .GlobalEnv)
+    print(paste("Loaded:", file))
   }
 }

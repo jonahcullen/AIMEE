@@ -6,18 +6,11 @@
 #' @noRd
 app_server <- function(input, output, session) {
   # source utility functions
-  # source(system.file("R", "utils.R", package = "AIMEE"))
-  load_aimee_data <- function(package) {
-    data_dir <- system.file("data", package = package)
-    rda_files <- list.files(data_dir, pattern = "\\.rda$", full.names = TRUE)
-    for (file in rda_files) {
-      load(file, envir = .GlobalEnv)
-      print(paste("Loaded:", file))
-    }
-  }
+ #source(system.file("utils.R", package = "AIMEE"), local = TRUE)
   # load all data files
   load_aimee_data("AIMEE")
-  # Your application server logic
+ 
+  # application server logic
   mod_Home_server("Home_1")
   mod_Export_server("Export_1")
   mod_Tissues_server("Tissues_1")
