@@ -72,6 +72,7 @@ usethis::use_data_raw(name = "process_fastqs_counts", open = FALSE)
 usethis::use_test("app")
 
 # Documentation
+devtools::document()
 
 ## Vignette ----
 usethis::use_vignette("AIMEE")
