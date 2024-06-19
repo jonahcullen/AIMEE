@@ -1,0 +1,36 @@
+name: Render README
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  render-readme:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Set up R
+        uses: r-lib/actions/setup-r@v2
+
+      - name: Install dependencies
+        run: |
+          install.packages("devtools")
+          devtools::install_deps()
+
+      - name: Render README.Rmd
+        run: |
+          Rscript -e 'devtools::build_readme()'
+
+      - name: Commit and push changes
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git add README.md
+          git commit -m 'Re-build README.md from README.Rmd'
+          git push
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
