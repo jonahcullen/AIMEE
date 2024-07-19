@@ -16,24 +16,6 @@ mod_ProcExplore_ui <- function(id){
         column(
           width = 3,
           shinyWidgets::pickerInput(
-            ns("tiss_select"),
-            label = "Tissue",
-            choices = unique(pre_rank$tissue),
-            options = list(
-              `virtualScroll` = 10,
-              size = 10,
-              `actions-box` = TRUE,
-              `live-search` = TRUE,
-              `selected-text-format`= "count",
-              `count-selected-text` = "{0} tissues selected"
-            ),
-            multiple = TRUE,
-            selected = NULL
-          )
-        ),
-        column(
-          width = 3,
-          shinyWidgets::pickerInput(
             ns("source_select"),
             label = "Source",
             choices = unique(pre_rank$source),
@@ -52,30 +34,19 @@ mod_ProcExplore_ui <- function(id){
         column(
           width = 3,
           shinyWidgets::pickerInput(
-            ns("sample_select"),
-            label = "Sample",
-            choices = sort(unique(na.omit(as.character(pre_rank$sample)))),
+            ns("tiss_select"),
+            label = "Tissue",
+            choices = unique(pre_rank$tissue),
             options = list(
               `virtualScroll` = 10,
               size = 10,
               `actions-box` = TRUE,
               `live-search` = TRUE,
               `selected-text-format`= "count",
-              `count-selected-text` = "{0} samples selected"
+              `count-selected-text` = "{0} tissues selected"
             ),
             multiple = TRUE,
-            selected = unique(pre_rank$sample)
-          )
-        ),
-        column(
-          width = 3,
-          shinyWidgets::awesomeRadio(
-            ns("sum_type"),
-            label = "Level",
-            choices = c("Samples" = "samples", "Tissues" = "tissues"),
-            inline = TRUE,
-            width = "800px",
-            selected = "tissues",
+            selected = NULL
           )
         )
       ),
@@ -89,11 +60,9 @@ mod_ProcExplore_ui <- function(id){
             options = list(
               `virtualScroll` = 10,
               size = 10,
-              # `actions-box` = TRUE,
               `live-search` = TRUE
-              # `selected-text-format`= "count",
-              # `count-selected-text` = "{0} samples selected"
-            )
+            ),
+            selected = NULL
           ),
           shinyWidgets::pickerInput(
             ns("y_axis"),
@@ -102,11 +71,9 @@ mod_ProcExplore_ui <- function(id){
             options = list(
               `virtualScroll` = 10,
               size = 10,
-              # `actions-box` = TRUE,
               `live-search` = TRUE
-              # `selected-text-format`= "count",
-              # `count-selected-text` = "{0} samples selected"
-            )
+            ),
+            selected = NULL
           )
         ),
         column(
@@ -114,28 +81,36 @@ mod_ProcExplore_ui <- function(id){
           shinydashboard::box(
             width = 12,
             plotOutput(ns("scatter"))
-            # plotly::plotlyOutput(ns("scatter"))
           )
         )
       ),
       fluidRow(
-        shinydashboard::box(
-          # title = "MTCARS",
+        div(
+          style = "display: flex; justify-content: center; margin-bottom: 20px;",
+          div(style = "margin-right: 10px;", shiny::downloadButton(ns("download_tiss_table"), "Tissue table")),
+          div(style = "margin-right: 10px;", shiny::downloadButton(ns("download_cent_table"), "Centroid table")),
+          div(style = "margin-right: 10px;", shiny::downloadButton(ns("download_plot"), "Centroid plot")),
+        )
+      ),
+      fluidRow(
+        column(
           width = 12,
+          tags$p("The plot above shows individual sample data points and their centroids by tissue. Centroids (and their standard error bars) represent the mean data values of the selected processing step for each tissue. All tissue centroids are displayed to facilitate comparisons between the tissue(s) of interest and all other included tissues. The centroid table below provides the selected mean values and standard errors for each tissue across data sources.")
+        )
+      ),
+      fluidRow(
+        shinydashboard::box(
+          width = 12,
+          title = "Tissues",
           DT::dataTableOutput(ns("tiss_table"))
         )
       ),
       fluidRow(
         shinydashboard::box(
-          # title = "MTCARS",
           width = 12,
+          title = "Centroids",
           DT::dataTableOutput(ns("cent_table"))
         )
-      ),
-      fluidRow(
-        column(width = 3, textOutput(ns('team_text'))),
-        br(),
-        column(width = 3, textOutput(ns('team_text2')))
       )
     )
   )
@@ -148,26 +123,35 @@ mod_ProcExplore_server <- function(id){
   moduleServer( id, function(input, output, session){
     ns <- session$ns
 
-    tissue_selected <- reactive({
-      req(input$tiss_select)
-      dplyr::filter(proc_cts, tissue %in% input$tiss_select)
+    # unclear if keeping version information in exports
+    version <- "v0.9"
+
+    source_selected <- reactive({
+      dplyr::filter(proc_cts, source %in% input$source_select)
     })
 
-    # observeEvent(tissue_selected(), {
-    #   choices <- unique(tissue_selected()$source)
-    #   shinyWidgets::updatePickerInput(session, inputId = "source_select", choices = choices)
-    # })
-    #
-    # source_selected <- reactive({
-    #   req(input$source_select)
-    #   dplyr::filter(tissue_selected(), source %in% input$source_select)
-    # })
+    observeEvent(source_selected(), {
+      choices <- unique(source_selected()$tissue)
+      shinyWidgets::updatePickerInput(session, inputId = "tiss_select", choices = choices)
+    })
+
+    tissue_selected <- reactive({
+      dplyr::filter(proc_cts, tissue %in% input$tiss_select)
+    })
 
     quote_col_name <- function(col_name) {
       if (grepl("[[:space:]|-]", col_name)) {
         return(paste0("`", col_name, "`"))
       }
       return(col_name)
+    }
+
+    common_validate <- function() {
+      validate(
+        need(input$x_axis, "please select an X axis"),
+        need(input$y_axis, "please select a Y axis"),
+        need(input$x_axis != input$y_axis, "X and Y axes must be different")
+      )
     }
 
     f <- function(z)sd(z)/sqrt(length(z)) # function to calculate std.err
@@ -179,12 +163,9 @@ mod_ProcExplore_server <- function(id){
 
     tissue_cols["NA"] <- "grey90"
 
-
     plt_df <- reactive({
-
       req(input$tiss_select)
 
-      # REQUIRE USER RPM VALUE
       tmp <- uid_rpms %>%
         dplyr::select(-c(system, source, breed, sex)) %>%
         dplyr::group_by(sample, tissue, new_lab) %>%
@@ -198,6 +179,7 @@ mod_ProcExplore_server <- function(id){
         ) %>%
         dplyr::ungroup() %>%
         dplyr::select(-c(tissue, sample, new_lab))
+      # print(paste("tmp:", paste(names(tmp), collapse = ", ")))
 
       proc_mirs <- proc_cts %>%
         tidyr::pivot_wider(names_from = step, values_from = count) %>%
@@ -210,141 +192,80 @@ mod_ProcExplore_server <- function(id){
       return(proc_mirs)
     })
 
-    X <- rlang::sym("Library size")
-    # X <- reactive({
-    #   req(input$x_axis)
-    #   # rlang::sym(input$x_axis)
-    #   return(input$x_axis)
-    # })
-
-    Y <- rlang::sym("Pre-quantification with\nmaximum length (25)")
-    # Y <- rlang::sym("Adapters removed")
-    # Y <- reactive({
-    #   req(input$y_axis)
-    #   # REQUIRE Y
-    #   # rlang::sym("canons")
-    #   return(input$y_axis)
-    # })
-
-    # form <- as.formula(paste("cbind(", quote_col_name(X),
-    #                          ", ", quote_col_name(Y),
-    #                          ") ~ tissue", sep = ""))
-    #
-    # form_se <- as.formula(paste("cbind(se.raw_in = ", quote_col_name(X),
-    #                             ", se.total = ", quote_col_name(Y),
-    #                             ") ~ tissue", sep = ""))
-
     centroids <- reactive({
+      common_validate()
 
-      req(input$tiss_select, input$x_axis, input$y_axis)
-      # req(input$source_select)
-
-      # x_col <- X()
-      # y_col <- Y()
       x_col <- quote_col_name(input$x_axis)
       y_col <- quote_col_name(input$y_axis)
 
-      # OLD VERSION
-      form <- as.formula(paste("cbind(", quote_col_name("Library size"),
-                               ", ", quote_col_name(Y),
-                               ") ~ tissue", sep = ""))
-
-      form_se <- as.formula(paste("cbind(se.X = ", quote_col_name("Library size"),
-                                  ", se.Y = ", quote_col_name(Y),
-                                  ") ~ tissue", sep = ""))
-
-      # NEW VERSION
-      # form <- as.formula(paste("cbind(", quote_col_name(x_col),
-      #                          ", ", quote_col_name(y_col),
-      #                          ") ~ tissue"))
-      #
-      # form_se <- as.formula(paste("cbind(se.X = ", quote_col_name(x_col),
-      #                             ", se.Y = ", quote_col_name(y_col),
-      #                             ") ~ tissue"))
-
-      # OLD VERSION
+      form <- as.formula(paste("cbind(", x_col, ", ", y_col, ") ~ tissue"))
       means <- aggregate(form, data = plt_df(), FUN = mean)
+
+      form_se <- as.formula(paste("cbind(se.X = ", x_col, ", se.Y = ", y_col, ") ~ tissue"))
       se <- aggregate(form_se, data = plt_df(), FUN = f)
 
-      # NEW VERSION
-      # means <- aggregate(form, data = plt_df(), FUN = mean)
-      # se <- aggregate(form_se, data = plt_df(), FUN = f)
-
-      # OLD VERSION
-      df <- merge(means, se) %>%
-        dplyr::left_join(plt_df() %>% dplyr::select(tissue, new_lab) %>% dplyr::distinct(), by = "tissue") %>%
+      df <- merge(means, se, by = "tissue") %>%
+        dplyr::left_join(
+          plt_df() %>%
+            dplyr::select(tissue, new_lab) %>%
+            dplyr::distinct(),
+          by = "tissue") %>%
         dplyr::mutate(
           se.X = round(se.X, 2),
           se.Y = round(se.Y, 2),
-          !!X := round(!!X, 2),
-          !!Y := round(!!Y, 2),
+          !!input$x_axis := round(!!rlang::sym(input$x_axis), 2),
+          !!input$y_axis := round(!!rlang::sym(input$y_axis), 2),
           tissue_pop = as.factor(ifelse(tissue %in% input$tiss_select, as.character(tissue), "NA")),
           tissue_alpha = ifelse(tissue %in% input$tiss_select, 1, 0.2),
           tissue_name = ifelse(tissue %in% input$tiss_select, as.character(new_lab), "")
         )
 
-      # NEW VERSION
-      # df <- merge(means, se) %>%
-      #   dplyr::left_join(plt_df() %>% dplyr::select(tissue, new_lab) %>% dplyr::distinct(), by = "tissue") %>%
-      #   dplyr::mutate(
-      #     se.X = round(se.X, 2),
-      #     se.Y = round(se.Y, 2),
-      #     !!rlang::sym(x_col) := round(!!rlang::sym(x_col), 2),
-      #     !!rlang::sym(y_col) := round(!!rlang::sym(y_col), 2),
-      #     tissue_pop = as.factor(ifelse(tissue %in% input$tiss_select, as.character(tissue), "NA")),
-      #     tissue_alpha = ifelse(tissue %in% input$tiss_select, 1, 0.2),
-      #     tissue_name = ifelse(tissue %in% input$tiss_select, as.character(new_lab), "")
-      #   )
-
-      # form <- as.formula(paste("cbind(", x_col, ", ", y_col, ") ~ tissue"))
-      # means <- aggregate(form, data = plt_df(), FUN = mean)
-
       return(df)
     })
-    # centroids <- aggregate(cbind(`Pre-quantification with\nmaximum length (25)`, canons) ~ tissue, proc_mirs, mean)
-    # centroids <- aggregate(form, data = proc_mirs, FUN = mean)
 
-    # se <- aggregate(cbind(se.raw_in = `Pre-quantification with\nmaximum length (25)`, se.total = canons) ~ tissue, proc_mirs, f)
-    # se <- aggregate(form_se, data = proc_mirs, FUN = f)
+    filtered_tiss_table <- reactive({
+      common_validate()
 
-    # TISSUE SELECT TO HIGHLIGHT
-    # tissue_select <- c("serum", "heart_left_ventricle", "leukocyte", "adrenal_cortex", "whole_blood", "testis")
-    # centroids <- merge(centroids, se) %>%
-    #   plyr::mutate(
-    #     tissue_pop = as.factor(ifelse(tissue %in% tissue_select, as.character(tissue), "NA")),
-    #     tissue_alpha = ifelse(tissue %in% tissue_select, 1, 0.2)
-    #   )
+      plt_df() %>%
+        dplyr::filter(
+          source %in% input$source_select &
+            tissue %in% input$tiss_select
+        ) %>%
+        dplyr::select(
+          source, tissue, new_lab, sample, breed, sex,
+          !!rlang::sym(input$x_axis),
+          !!rlang::sym(input$y_axis)
+        )
+    })
 
+    filtered_cent_table <- reactive({
+      common_validate()
 
+      centroids() %>%
+        dplyr::filter(
+          # source %in% input$source_select &
+          tissue %in% input$tiss_select
+        ) %>%
+        dplyr::select(tissue, !!rlang::sym(input$x_axis), se.X, !!rlang::sym(input$y_axis), se.Y)
+    })
 
-    # labels for last step
-    # label_data <- reactive({
-    #   plt_df() %>%
-    #     dplyr::group_by(source) %>%
-    #     dplyr::filter(step == tail(levels(step), 1))
-    # })
-
-    # output$scatter <- plotly::renderPlotly({
     output$scatter <- renderPlot({
-      # output$line_chart <- renderPlot({
-      # req(plt_df())
-      # req(centroids())
-      # req(label_data())
-      # req(input$sum_type)
+      common_validate()
+      validate(
+        need(nrow(plt_df()) > 0, "no data available for the selected filters")
+      )
 
       ggplot2::ggplot(plt_df(),
                       ggplot2::aes(
-                        x = !!X,
-                        y = !!Y,
-                        # color = new_lab
-                      )
-      ) +
+                        x = .data[[input$x_axis]],
+                        y = .data[[input$y_axis]],
+                      )) +
         ggplot2::geom_errorbarh(
           data = centroids(),
           height = 0.1,
           ggplot2::aes(
-            xmin = !!X - se.X,
-            xmax = !!X + se.X,
+            xmin = .data[[input$x_axis]] - se.X,
+            xmax = .data[[input$x_axis]] + se.X,
             alpha = tissue_alpha
           )
         ) +
@@ -352,8 +273,8 @@ mod_ProcExplore_server <- function(id){
           data = centroids(),
           width = 0.1,
           ggplot2::aes(
-            ymin = !!Y - se.Y,
-            ymax = !!Y + se.Y,
+            ymin = .data[[input$y_axis]] - se.Y,
+            ymax = .data[[input$y_axis]] + se.Y,
             alpha = tissue_alpha
           )
         ) +
@@ -364,7 +285,6 @@ mod_ProcExplore_server <- function(id){
           size = 7,
           shape = 21,
         ) +
-        # ggplot2::scale_x_continuous(labels = scales::label_comma()) +
         ggrepel::geom_label_repel(
           data = centroids(),
           ggplot2::aes(label = tissue_name),
@@ -372,17 +292,10 @@ mod_ProcExplore_server <- function(id){
           box.padding = 0.9,
           segment.linetype = 3,
         ) +
-        # ggplot2::scale_x_log10(labels = scales::comma) +
-        # ggplot2::scale_y_log10(labels = scales::comma) +
-        ggplot2::scale_color_manual(
-          values = tissue_cols
-        ) +
-        ggplot2::scale_fill_manual(
-          values = tissue_cols
-        ) +
-        # ggplot2::scale_alpha_manual(
-        #   values = tissue_alpha
-        # ) +
+        ggplot2::scale_color_manual(values = tissue_cols) +
+        ggplot2::scale_fill_manual(values = tissue_cols) +
+        ggplot2::scale_x_continuous(labels = scales::label_comma()) +
+        ggplot2::scale_y_continuous(labels = scales::label_comma()) +
         ggplot2::theme_dark() +
         ggplot2::theme(
           legend.position = "none"
@@ -390,43 +303,42 @@ mod_ProcExplore_server <- function(id){
 
     })
 
+    output$download_tiss_table <- downloadHandler(
+      filename = function() {
+        paste("aimee_proc_explore.tissues.", version, ".csv", sep = "")
+      },
+      content = function(file) {
+        write.csv(filtered_tiss_table(), file, quote = FALSE, row.names = FALSE)
+      }
+    )
+
+    output$download_cent_table <- downloadHandler(
+      filename = function() {
+        paste("aimee_proc_explore.centroids.", version, ".csv", sep = "")
+      },
+      content = function(file) {
+        write.csv(filtered_cent_table(), file, quote = FALSE, row.names = FALSE)
+      }
+    )
+
+    output$download_plot <- downloadHandler(
+      filename = function() {
+        paste("aimee_proc_explore.", version, ".png", sep = "")
+      },
+      content = function(file) {
+        ragg::agg_png(file, width = 8, height = 5, units = "in", res = 300)
+        print(ggplot2::last_plot())
+        dev.off()
+      }
+    )
+
     output$tiss_table <- DT::renderDT({
-
-      plt_df() %>%
-        dplyr::filter(tissue %in% input$tiss_select) %>%
-        dplyr::select(
-          source, tissue, new_lab, sample, breed, sex,
-          !!X,
-          !!Y,
-          # dplyr::everything(),
-          -c(tissue_sample, system, abvs, source_mod, tissue_pop, tissue_alpha)
-        )
-      # out <- plt_df() %>%
-      #   dplyr::rename(tissue = new_lab)
-
-      # if(input$sum_type == "samples") {
-      #   out <- plt_df() %>%
-      #     dplyr::select(-c(tissue_sample)) %>%
-      #     tidyr::pivot_wider(names_from = step, values_from = count)
-      # }
-
-      # return(out)
-
+      filtered_tiss_table()
     })
 
     output$cent_table <- DT::renderDT({
-      # req(input$tiss_select)
-      centroids() %>%
-        # dplyr::select(tissue, new_lab, !!X, se.X, !!Y, se.Y) %>%
-        dplyr::select(tissue, !!X, se.X, !!Y, se.Y) %>%
-        dplyr::filter(tissue %in% input$tiss_select)
+      filtered_cent_table()
     })
-
-    # output$team_text = renderText(colnames(plt_df()))
-    # output$team_text = renderText(X())
-    # output$team_text = renderText(names(plt_df))
-    # output$team_text2 = renderText(names(mir_cols()))
-
   })
 }
 

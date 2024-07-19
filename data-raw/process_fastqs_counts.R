@@ -11,17 +11,17 @@ proc_cts <- read.table("data-raw/process_fastqs_counts.csv", header = TRUE, sep 
     )
   ) %>%
   dplyr::right_join(tissues %>% dplyr::select(-post_counts)) %>%
-  tidyr::pivot_longer(cols = steps, names_to = "step", values_to = "count") %>%
+  tidyr::pivot_longer(cols = dplyr::all_of(steps), names_to = "step", values_to = "count") %>%
   dplyr::mutate(
     step = factor(step, levels = dplyr::all_of(steps)),
     step = dplyr::recode(
       step,
-      "seq_depth" = "Library size",
-      "trimmed_reads" = "Adapters removed",
-      "clean_min_length" = "Quality sequences with\nminimum length (17)",
-      "post_join_mirec" = "Joined (PE) and sequence\ncorrected",
-      "pre_mirnas" = "Sequences unaligned\nagainst ncRNA",
-      "max_length" = "Pre-quantification with\nmaximum length (25)"
+      "seq_depth" = "library_size",
+      "trimmed_reads" = "adapters_removed",
+      "clean_min_length" = "quality_seqs_min_length",
+      "post_join_mirec" = "joined_seqs_corrected",
+      "pre_mirnas" = "seqs_unaligned_against_ncRNA",
+      "max_length" = "pre_quant_max_length"
     ),
     source_mod = factor(ifelse(!grepl("FAANG|Primary", source), "Public", as.character(source))),
     source_mod = factor(source_mod, levels = c("Primary", "FAANG", "Public")))

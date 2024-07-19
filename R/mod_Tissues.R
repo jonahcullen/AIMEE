@@ -12,19 +12,8 @@ mod_Tissues_ui <- function(id){
   tagList(
     fluidPage(
       fluidRow(
-      #   column(
-      #     width = 5,
-      #     h2("Welcome!")
-      #   ),
         column(
           width = 3,
-          # selectInput(
-          #   inputId = ns("tiss_select"),
-          #   label = "Tissues",
-          #   choices = c("All", unique(tissues$tissue)),
-          #   # selected = "liver",
-          #   multiple = TRUE
-          # )
           shinyWidgets::pickerInput(
             ns("source_select"),
             label = "Source",
@@ -34,7 +23,6 @@ mod_Tissues_ui <- function(id){
               size = 10,
               `actions-box` = TRUE,
               `live-search` = TRUE,
-              # `multiple-separator` = " | ",
               `selected-text-format`= "count",
               `count-selected-text` = "{0} sources selected"
             ),
@@ -82,21 +70,22 @@ mod_Tissues_ui <- function(id){
       ),
       fluidRow(
         shinydashboard::box(
-          # title = "Plot",
           width = 12,
           plotly::plotlyOutput(ns("tiss_plot"))
-          # plotOutput(ns("tiss_plot"), hover = hoverOpts(id = "plot_hover"))
+        )
+      ),
+      fluidRow(
+        div(
+          style = "display: flex; justify-content: center; margin-bottom: 20px;",
+          div(style = "margin-right: 10px;", shiny::downloadButton(ns("download_table"), "Sample data")),
+          shiny::downloadButton(ns("download_plot"), "Bar plot")
         )
       ),
       fluidRow(
         shinydashboard::box(
-          # title = "MTCARS",
           width = 12,
           DT::dataTableOutput(ns("tiss_table"))
         )
-      ),
-      fluidRow(
-        column(width = 3, textOutput(ns('team_text')))
       )
     )
   )
@@ -109,33 +98,32 @@ mod_Tissues_server <- function(id){
   moduleServer(id, function(input, output, session){
     ns <- session$ns
 
+    # unclear if keeping version information in exports
+    version <- "v0.9"
+
     tissue_cols <- colorRampPalette(
       rev(RColorBrewer::brewer.pal(11, "Spectral"))
     )(length(unique(tissues$tissue)))
     names(tissue_cols) <- unique(levels(tissues$tissue))
 
-    # selected <- reactive({
-    #   if (is.null(input$tiss_select)) {df <- tissues
-    #   } else df <- tissues[tissues$tissue %in% input$tiss_select, ]
-    #   df
+    # source_selected <- reactive({
+    #   tissues %>%
+    #     dplyr::filter(source %in% input$source_select) %>%
+    #     dplyr::group_by(tissue) %>%
+    #     dplyr::filter(dplyr::n_distinct(source) == length(input$source_select)) %>%
+    #     dplyr::ungroup() #%>%
     # })
 
-    # selected <- reactive({
-    #   if (is.null(input$tiss_select)) {df <- tissues
-    #   } else df <- tissues %>% dplyr::filter(tissue %in% input$tiss_select)
-    #   df
+    # observeEvent(source_selected(), {
+    #   choices <- unique(source_selected()$system)
+    #   if (length(choices) == 0) {
+    #     choices <- "0 shared systems"
+    #     shinyWidgets::updatePickerInput(session, inputId = "system_select", choices = choices, selected = choices)
+    #   } else {
+    #     shinyWidgets::updatePickerInput(session, inputId = "system_select", choices = choices)
+    #   }
     # })
 
-    # data <- read.table("se_coldata_final.tsv", header = TRUE, sep = "\t")
-    # selected <- reactive({
-    #   data <- tissues
-    #   data <- data %>%
-    #     dplyr::select(system, tissue, sample) %>%
-    #     dplyr::filter(tissue %in% input$tiss_select)
-    #   data
-    # })
-
-    # HIERARCHICAL
     source_selected <- reactive({
       dplyr::filter(tissues, source %in% input$source_select)
     })
@@ -152,7 +140,13 @@ mod_Tissues_server <- function(id){
 
     observeEvent(system_selected(), {
       choices <- unique(system_selected()$tissue)
-      shinyWidgets::updatePickerInput(session, inputId = "tiss_select", choices = choices)
+      # shinyWidgets::updatePickerInput(session, inputId = "tiss_select", choices = choices)
+      if (length(choices) == 0) {
+        choices <- "0 shared tissues"
+        shinyWidgets::updatePickerInput(session, inputId = "tiss_select", choices = choices, selected = choices)
+      } else {
+        shinyWidgets::updatePickerInput(session, inputId = "tiss_select", choices = choices)
+      }
     })
 
     selected_all <- reactive({
@@ -161,61 +155,73 @@ mod_Tissues_server <- function(id){
         dplyr::select(system, tissue, new_lab, sample, source, breed, sex) # remove post_counts
     })
 
-    output$tiss_plot <- plotly::renderPlotly({
-      # shinipsum::random_ggplot(type = "line")
-      ggplot2::ggplot(
-        selected_all(),
-        ggplot2::aes(x = new_lab, fill = tissue)) +
-        ggplot2::geom_bar(color = "black") +
-        ggplot2::scale_fill_manual(values = tissue_cols) +
-        # ggplot2::scale_color_manual(values = "black")
-        ggplot2::labs(y = "Tissue count") +
-        ggplot2::theme_bw() +
-        ggplot2::theme(
-          axis.text.x = ggplot2::element_text(size = 10, angle = 45, vjust = 1, hjust = 1),
-          axis.title.x = ggplot2::element_blank(),
-          # axis.ticks.x = element_blank(),
-          # axis.line.x.bottom = element_blank(),
-          # axis.title.x = element_blank(),
-          axis.text.y = ggplot2::element_text(size = 12),
-          axis.title.y = ggplot2::element_text(size = 12),
-          # panel.spacing.x = unit(0.3, "mm"),
-          # panel.grid.major.x = element_blank(),
-          # legend.text = element_text(size = 8),
-          legend.position = "none",
-          # legend.key.size = unit(0.5, "cm"),
-          # panel.grid.major.y = element_line(color = "grey90"),
-          # plot.margin = margin(0, 0, 0, 0, "pt")
-        )
-    })
-
-
-    # WORKING SIMPLE VERSION
-    # tiss_selected <- reactive({
-    #   # tissues %>%
-    #   #   dplyr::select(system, tissue, sample) %>%
-    #     # tissues %>% dplyr::filter(tissue %in% input$tiss_select)
-    #   dplyr::filter(tissues, tissue %in% input$tiss_select)
-    #
-    # })
-
-    output$tiss_table <- DT::renderDT({
-      # req(input$tiss_select)
-      # system_selected() %>% filter(tissue %in% input$tiss_select)
-      # source_selected() %>% dplyr::filter(system %in% input$system_select)
+    selected_table <- reactive({
       selected_all() %>%
         dplyr::select(-tissue) %>% # drop the raw tissue column
         dplyr::rename(
           tissue = new_lab
         ) %>%
         dplyr::select(source, system, tissue, sample, breed, sex)
-
-        # dplyr::filter(tissue %in% input$tiss_select) %>%
-        # dplyr::select(system, tissue, sample, source, breed, sex, post_counts)
     })
 
-    # output$team_text = renderText(length(unique(tissues$tissue)))
-    output$team_text = renderText(input$tiss_select)
+    output$tiss_plot <- plotly::renderPlotly({
+      validate(
+        need(nrow(selected_all()) > 0, "no data available for the selected filters"),
+      )
+
+      counts <- selected_all() %>%
+        dplyr::group_by(new_lab) %>%
+        dplyr::summarise(count = dplyr::n())
+
+      # add counts back
+      selected_counts <- selected_all() %>%
+        dplyr::left_join(counts, by = "new_lab")
+
+      p <- ggplot2::ggplot(
+        selected_counts,
+        ggplot2::aes(
+          x = new_lab,
+          fill = tissue,
+          text = paste("tissue:", new_lab, "<br>count:", count)
+        )) +
+        ggplot2::geom_bar(color = "black") +
+        ggplot2::scale_fill_manual(values = tissue_cols) +
+        ggplot2::labs(y = "Sample count") +
+        ggplot2::theme_bw() +
+        ggplot2::theme(
+          axis.text.x = ggplot2::element_text(size = 10, angle = 45, vjust = 1, hjust = 1),
+          axis.title.x = ggplot2::element_blank(),
+          axis.text.y = ggplot2::element_text(size = 12),
+          axis.title.y = ggplot2::element_text(size = 12),
+          legend.position = "none",
+        )
+
+      plotly::ggplotly(p, tooltip = c("text"))
+    })
+
+    output$download_table <- downloadHandler(
+      filename = function() {
+        paste("aimee_samples.", version, ".csv", sep = "")
+      },
+      content = function(file) {
+        write.csv(selected_table(), file, quote = FALSE, row.names = FALSE)
+      }
+    )
+
+    output$download_plot <- downloadHandler(
+      filename = function() {
+        paste("aimee_sample_plot.", version, ".png", sep = "")
+      },
+      content = function(file) {
+        ragg::agg_png(file, width = 10, height = 8, units = "in", res = 300)
+        print(ggplot2::last_plot())
+        dev.off()
+      }
+    )
+
+    output$tiss_table <- DT::renderDT({
+      selected_table()
+    })
 
   })
 }

@@ -13,7 +13,6 @@ app_ui <- function(request) {
 
       header = shinydashboardPlus::dashboardHeader(
         title = "AIMEE"
-        # enable_rightsidebar = FALSE
       ),
       # Create our navigation menu that links to each of the tabs we defined
       sidebar = shinydashboardPlus::dashboardSidebar(
@@ -21,14 +20,35 @@ app_ui <- function(request) {
           # Setting id makes input$tabs give the tabName of currently-selected tab
           id = "tabs",
           shinydashboard::menuItem(text = "Dashboard", tabName = "dashboard"),
+          div(
+            style = "padding: 5px; margin-bottom: -10px;",
+            shinyWidgets::pickerInput(
+              inputId = "exclusive_choice",
+              label = tags$span(style = "font-size: 12px;", "miRNA-space:"),
+              choices = c("All", "Exclusive", "Exclusive repeat", "Ambiguous", "Ambiguous repeat"),
+              choicesOpt = list(
+                subtext = c("(n=6951)", "(n=5498)", "(n=116)", "(n=853)", "(n=484)")
+              ),
+              options = shinyWidgets::pickerOptions(
+                container = "body",
+                style = "btn-sm"
+              ),
+              width = "100%",
+              selected = "ALL"
+            )
+          ),
           shinydashboard::menuItem(text = "By Tissue", tabName = "by_tissue", icon = icon("lungs"),
-                                   shinydashboard::menuSubItem("Tissue counts", tabName = "tiss_overview", icon = icon("chart-simple")),
-                                   shinydashboard::menuSubItem("Stepwise read loss", tabName = "read_loss", icon = icon("chart-gantt")),
-                                   shinydashboard::menuSubItem("Process explorer", tabName = "proc_explore", icon = icon("circle")),
-                                   shinydashboard::menuSubItem("Top miRs", tabName = "mir_tops", icon = icon("ranking-star")),
-                                   shinydashboard::menuSubItem("Rank aggregation", tabName = "rank_agg", icon = icon("list-ol"))),
-          shinydashboard::menuItem(text = "By miRs", tabName = "by_mirs", icon = icon("magnifying-glass-chart"),
-                                   shinydashboard::menuSubItem("miRNAs", tabName = "mirnas")),
+            shinydashboard::menuSubItem("Tissue counts", tabName = "tiss_overview", icon = icon("chart-simple")),
+            shinydashboard::menuSubItem("Stepwise read attrition", tabName = "read_loss", icon = icon("arrow-down-wide-short")),
+            shinydashboard::menuSubItem("Process explorer", tabName = "proc_explore", icon = icon("square-arrow-up-right")),
+            shinydashboard::menuSubItem("Top miRs", tabName = "mir_tops", icon = icon("ranking-star")),
+            shinydashboard::menuSubItem("miR overlap", tabName = "mir_overlap", icon = icon("chart-pie")),
+            shinydashboard::menuSubItem("Rank aggregation", tabName = "rank_agg", icon = icon("list-ol"))
+          ),
+          shinydashboard::menuItem(text = "By miRs", tabName = "by_mirs", icon = icon("down-left-and-up-right-to-center"),
+            shinydashboard::menuSubItem("miRNAs", tabName = "mirnas", icon = icon("square-poll-vertical")),
+            shinydashboard::menuSubItem("Search", tabName = "search", icon = icon("magnifying-glass"))
+          ),
           shinydashboard::menuItem(text = "Downloads", tabName = "export", icon = icon("download"))
         )
       ),
@@ -41,8 +61,10 @@ app_ui <- function(request) {
           shinydashboard::tabItem(tabName = "read_loss", mod_ReadLoss_ui("ReadLoss_1")),
           shinydashboard::tabItem(tabName = "proc_explore", mod_ProcExplore_ui("ProcExplore_1")),
           shinydashboard::tabItem(tabName = "mir_tops", mod_TopMirs_ui("TopMirs_1")),
+          shinydashboard::tabItem(tabName = "mir_overlap", mod_Overlap_ui("Overlap_1")),
           shinydashboard::tabItem(tabName = "rank_agg", mod_RankAgg_ui("RankAgg_1")),
-          shinydashboard::tabItem(tabName = "mirnas", mod_ByMiRNA_ui("ByMiRNA_1"))
+          shinydashboard::tabItem(tabName = "mirnas", mod_ByMiRNA_ui("ByMiRNA_1")),
+          shinydashboard::tabItem(tabName = "search", mod_Search_ui("Search_1"))
         )
       ),
       # rightsidebar = NULL,

@@ -30,6 +30,8 @@ usethis::use_package("forcats")
 usethis::use_package("scales")
 usethis::use_package("RobustRankAggreg")
 usethis::use_package("rlang")
+usethis::use_package("ComplexUpset")
+usethis::use_package("ragg")
 usethis::use_pipe()
 # attachment::att_amend_desc()
 
@@ -46,6 +48,8 @@ golem::add_module(name = "ProcExplore", with_test = TRUE)
 golem::add_module(name = "TopMirs", with_test = TRUE)
 golem::add_module(name = "ByMiRNA", with_test = TRUE)
 golem::add_module(name = "RankAgg", with_test = TRUE)
+golem::add_module(name = "Overlap", with_test = TRUE)
+golem::add_module(name = "Search", with_test = TRUE)
 # golem::add_module(name = "Enrichment", with_test = TRUE)
 
 
@@ -63,8 +67,10 @@ golem::add_sass_file("custom")
 
 ## Add internal datasets ----
 ## If you have data in your package
+usethis::use_data_raw(name = "mirna_space_ids", open = FALSE)
 usethis::use_data_raw(name = "se_coldata_final", open = FALSE)
 usethis::use_data_raw(name = "isomir_rpm.isomirmap_exp_filt", open = FALSE)
+usethis::use_data_raw(name = "isomir_cts.isomirmap_exp_filt", open = FALSE)
 usethis::use_data_raw(name = "process_fastqs_counts", open = FALSE)
 
 ## Tests ----

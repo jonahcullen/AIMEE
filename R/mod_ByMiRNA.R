@@ -23,13 +23,31 @@ mod_ByMiRNA_ui <- function(id){
               `virtualScroll` = 10,
               size = 10,
               `actions-box` = TRUE,
-              # `multiple-separator` = " | ",
               `live-search` = TRUE,
               `selected-text-format`= "count",
               `count-selected-text` = "{0} sources selected"
             ),
             multiple = TRUE,
-            selected = unique(canons$source)
+            selected = NULL
+            # selected = unique(canons$source)
+          )
+        ),
+        column(
+          width = 3,
+          shinyWidgets::pickerInput(
+            ns("tiss_select"),
+            label = "Tissue",
+            choices = unique(canons$new_lab),
+            options = list(
+              `virtualScroll` = 10,
+              size = 10,
+              `actions-box` = TRUE,
+              `live-search` = TRUE,
+              `selected-text-format`= "count",
+              `count-selected-text` = "{0} tissues selected"
+            ),
+            multiple = TRUE,
+            selected = NULL
           )
         ),
         column(
@@ -43,78 +61,48 @@ mod_ByMiRNA_ui <- function(id){
               size = 10,
               `actions-box` = TRUE,
               `live-search` = TRUE
-              # `selected-text-format`= "count",
-              # `count-selected-text` = "{0} tissues selected"
             ),
-            multiple = FALSE,
-            # selected = NULL
+            multiple = TRUE,
+            selected = NULL
           )
         ),
-        # column(
-        #   width = 3,
-        #   shinyWidgets::checkboxGroupButtons(
-        #     ns("type_select"),
-        #     label = "Type",
-        #     choices = unique(uid_rpms$type),
-        #     direction = "horizontal",
-        #     # inline = TRUE,
-        #     justified = TRUE,
-        #     selected = "Canon",
-        #     checkIcon = list(
-        #       yes = icon("circle-check", class = "fa-regular"),
-        #       no = icon("circle", class = "fa-regular")
-        #     )
-        #   )
-        # ),
-        # column(
-        #   width = 3,
-        #   shinyWidgets::pickerInput(
-        #     ns("top_n"),
-        #     label = "Top N",
-        #     choices = c(5, 10, 20, 50, 100),
-        #     multiple = FALSE,
-        #     selected = 5
-        #     # status = "danger"
-        #   )
-        # )
+        column(
+          width = 2,
+          shinyWidgets::awesomeRadio(
+            ns("sum_type"),
+            label = "Level",
+            choices = c("Sample" = "sample", "Tissue" = "tissue"),
+            inline = TRUE,
+            width = "800px",
+            selected = "tissue",
+          )
+        )
       ),
       fluidRow(
         shinydashboard::box(
           # title = "Plot",
           width = 12,
           plotly::plotlyOutput(ns("mirna_plot"))
-          # plotOutput(ns("tiss_plot"), hover = hoverOpts(id = "plot_hover"))
         )
       ),
-      # fluidRow(
-      #   column(
-      #     width = 5,
-      #     shinyWidgets::awesomeRadio(
-      #       ns("sum_type"),
-      #       label = "Summary table",
-      #       choices = c("Samples" = "samples", "Tissues" = "tissues"),
-      #       inline = TRUE,
-      #       width = "800px",
-      #       selected = "tissues",
-      #     )
-      #     # tags$head(tags$style(HTML("
-      #     #   .checkbox-inline, .radio-inline {
-      #     #     margin-right: 20px;
-      #     #   }
-      #     # ")))
-      #   )
-      # ),
+      fluidRow(
+        div(
+          style = "display: flex; justify-content: center; margin-bottom: 20px;",
+          div(style = "margin-right: 10px;", shiny::downloadButton(ns("download_table"), "Expression (RPMs)")),
+          div(style = "margin-right: 10px;", shiny::downloadButton(ns("download_plot"), "Box plot")),
+        )
+      ),
+      fluidRow(
+        column(
+          width = 12,
+          tags$p("Note: When exploring at the sample level, you can interact with the plot legend to focus on specific miRNAs. Double-click on a legend entry (i.e. the selected miRNAs) to isolate a particular miRNA, making it easier to examine its expression across samples. Double-click on the legend entry to restore the full plot view. Additionally, due to a technical issue, data points defined as outliers we'll appear twice.")
+        )
+      ),
       fluidRow(
         shinydashboard::box(
-          # title = "MTCARS",
           width = 12,
           DT::dataTableOutput(ns("mirna_table"))
         )
-      ),
-      fluidRow(
-        column(width = 3, textOutput(ns('team_text'))),
-        # br(),
-        # column(width = 3, textOutput(ns('team_text2')))
       )
     )
   )
@@ -127,127 +115,214 @@ mod_ByMiRNA_server <- function(id){
   moduleServer( id, function(input, output, session){
     ns <- session$ns
 
+    # unclear if keeping version information in exports
+    version <- "v0.9"
+
     mirna_cols <- colorRampPalette(
       RColorBrewer::brewer.pal(6, "Dark2")
     )(length(unique(canons$mir_names)))
     names(mirna_cols) <- unique(levels(canons$mir_names))
 
-    # HIERARCHICAL
+    tissue_cols <- colorRampPalette(
+      rev(RColorBrewer::brewer.pal(11, "Spectral"))
+    )(length(unique(tissues$new_lab)))
+    names(tissue_cols) <- unique(levels(tissues$new_lab))
+
     source_selected <- reactive({
+      # req(input$source_select)
       dplyr::filter(canons, source %in% input$source_select)
+      # print(paste0("sou Vrce_select: ",nrow(selected)))
+      # print(head(selected))
+      # return(selected)
     })
 
+    # observeEvent(source_selected(), {
+    #   choices <- unique(source_selected()$mir_names)
+    #   shinyWidgets::updatePickerInput(session, inputId = "mirna_select", choices = choices)
+    # })
+
     observeEvent(source_selected(), {
+      choices <- unique(source_selected()$new_lab)
+      shinyWidgets::updatePickerInput(session, inputId = "tiss_select", choices = choices)
+    })
+
+    tissue_selected <- reactive({
+      # req(input$tiss_select)
+      validate(
+        need(nrow(source_selected()) > 0, "please select at least one source")
+      )
+
+      dplyr::filter(source_selected(), new_lab %in% input$tiss_select)
+    })
+
+    observeEvent(tissue_selected(), {
       choices <- unique(source_selected()$mir_names)
       shinyWidgets::updatePickerInput(session, inputId = "mirna_select", choices = choices)
     })
 
     mirna_selected <- reactive({
-      # req(input$tiss_select)
-      dplyr::filter(source_selected(), mir_names %in% input$mirna_select)
-    })
+      # req(tissue_selected())
+      validate(
+        need(nrow(tissue_selected()) > 0, "please select at least one tissue")
+      )
 
-    # observeEvent(tissue_selected(), {
-    #   choices <- unique(tissue_selected()$type)
-    #   shinyWidgets::updatePickerInput(session, inputId = "type_select", choices = choices)
-    # })
+      dplyr::filter(tissue_selected(), mir_names %in% input$mirna_select)
+      # print(paste0("mirna_selected: ", nrow(selected)))
+      # print(head(selected))
+      # return(selected)
+    })
 
     mirna_summary <- reactive({
-      req(input$mirna_select)
-
-      mirna_selected() %>%
-        # dplyr::filter(source %in% input$source_select) %>%
-        dplyr::group_by(tissue, new_lab, mir_names, Read) %>%
-        dplyr::filter(any(rpm != 0)) %>%
-        dplyr::summarise(
-          mean = round(mean(rpm), 2),
-          SEM = round(sd(rpm)/sqrt(dplyr::n()), 2),
-          median = round(median(rpm), 2),
-          Q1 = round(quantile(rpm, 0.25), 2),
-          Q3 = round(quantile(rpm, 0.75), 2)
-        ) %>%
-        dplyr::ungroup() %>%
-        dplyr::arrange(desc(mean)) #%>%
-        # dplyr::distinct(id, .keep_all = TRUE) %>%
-        # dplyr::slice_head(n = as.numeric(input$top_n))
+      req(mirna_selected())
+      # validate(
+      #   need(nrow(mirna_selected()) > 0, "please select an miRNA")
+      # )
+      if (input$sum_type == "tissue"){
+        mirna_selected() %>%
+          dplyr::group_by(tissue, new_lab, mir_names, Read) %>%
+          # dplyr::filter(any(rpm != 0)) %>%
+          dplyr::summarise(
+            mean = round(mean(rpm), 2),
+            SEM = round(sd(rpm)/sqrt(dplyr::n()), 2),
+            median = round(median(rpm), 2),
+            Q1 = round(quantile(rpm, 0.25), 2),
+            Q3 = round(quantile(rpm, 0.75), 2)
+          ) %>%
+          dplyr::ungroup() %>%
+          dplyr::arrange(desc(mean))
+      } else if (input$sum_type == "sample"){
+        mirna_selected() %>%
+          dplyr::mutate(
+            sample = stringr::str_replace(
+              tissue_sample, paste0(tissue, "_"), "")
+            ) %>%
+          dplyr::select(
+            source, system, tissue, new_lab, sample,
+            breed, sex, Read, id, mir_names, rpm
+            )
+      }
     })
 
-    # top_selected <- reactive({
-    #   req(input$type_select)
-    #
-    #   tissue_summary() %>%
-    #     dplyr::pull(mir_names) # was id
-    # })
-
-    # NEED TO SPLIT THIS SO THERE CAN BE A TABLE CHOICE BETWEEN SUMMARY AT THE
-    # TISSUE LEVEL OR INDIVIDUAL LEVEL
-
-    # selected_all <- reactive({
-    #   # req(top_selected())
-    #   req(input$mirna_select)
-    #
-    #   source_selected() %>%
-    #     dplyr::filter( %in% input$type_select) %>%
-    #     dplyr::select(id, mir_names, parents, variants, type, rpm, system, tissue, source, sample, breed, sex) %>%
-    #     dplyr::filter(mir_names %in% top_selected()) # was id
-    # })
-
-    # get top mean mirs
-
-    output$mirna_plot <- plotly::renderPlotly({
-
-      ggplot2::ggplot(
-        mirna_selected(),
-        ggplot2::aes(
-          x = new_lab,
-          y = rpm,
-          fill = mir_names,
-          label = tissue_sample
-        )) +
-        ggplot2::geom_violin() +
-        ggbeeswarm::geom_quasirandom(method = "smiley", groupOnX = FALSE, width = 0.1) +
-        ggplot2::scale_fill_manual(values = mirna_cols) +
-        ggplot2::scale_y_continuous(labels = scales::label_comma()) +
-        ggplot2::labs(y = "Reads per million (RPM)") +
-        ggplot2::theme_light() +
-        ggplot2::theme(
-          axis.text.x = ggplot2::element_text(size = 10, angle = 45, vjust = 1, hjust = 1),
-          axis.title.x = ggplot2::element_blank(),
-          axis.text.y = ggplot2::element_text(size = 10),
-          axis.title.y = ggplot2::element_text(size = 10),
-          legend.position = "none",
-        )
-
-    })
-
-
-    # WORKING SIMPLE VERSION
-    # tiss_selected <- reactive({
-    #   # tissues %>%
-    #   #   dplyr::select(system, tissue, sample) %>%
-    #     # tissues %>% dplyr::filter(tissue %in% input$tiss_select)
-    #   dplyr::filter(tissues, tissue %in% input$tiss_select)
-    #
-    # })
-
-    output$mirna_table <- DT::renderDT({
+    selected_table <- reactive({
+      req(mirna_summary())
 
       mirna_summary() %>%
-        dplyr::select(-tissue) %>% # drop the raw tissue column
+        dplyr::select(-tissue) %>%
         dplyr::rename(
           tissue = new_lab
         )
-
     })
 
-    # output$team_text = renderText(length(unique(tissues$tissue)))
-    # output$team_text = renderText(input$tiss_select)
-    # output$team_text = renderText(dim(uid_rpms))
-    # output$team_text = renderText(colnames(selected_sorted))
-    output$team_text = renderText(colnames(mirna_selected()))
-    # output$team_text2 = renderText(colnames(selected_all()))
-    # output$team_text = renderText(input$top_n)
+    # output$mirna_plot <- plotly::renderPlotly({
+    p <- reactive({
+      validate(
+        need(nrow(mirna_selected()) > 0, "please select at least one miRNA")
+      )
 
+      plt_df <- mirna_selected() %>%
+        dplyr::mutate(
+          sample = stringr::str_replace(tissue_sample, paste0(tissue, "_"), ""),
+          wrapped_label = stringr::str_replace(interaction(new_lab, mir_names), "\\.", "\n"))
+
+
+      if (input$sum_type == "tissue"){
+        p <- ggplot2::ggplot(
+          plt_df,
+          ggplot2::aes(
+            x = new_lab,
+            y = rpm,
+            fill = new_lab,
+            text = paste(
+              "sample:", sample,
+              "<br>tissue:", new_lab,
+              "<br>mir_names:", mir_names,
+              "<br>rpm:", rpm),
+          )) +
+          ggplot2::geom_boxplot() +
+          ggbeeswarm::geom_quasirandom(method = "smiley", groupOnX = FALSE, width = 0.1) +
+          ggplot2::scale_fill_manual(values = tissue_cols) +
+          ggplot2::scale_y_continuous(labels = scales::label_comma()) +
+          ggplot2::labs(y = "Reads per million (RPM)") +
+          ggplot2::theme_light() +
+          ggplot2::theme(
+            axis.text.x = ggplot2::element_text(size = 10, angle = 45, vjust = 1, hjust = 1),
+            axis.title.x = ggplot2::element_blank(),
+            axis.text.y = ggplot2::element_text(size = 10),
+            axis.title.y = ggplot2::element_text(size = 10),
+            legend.position = "none",
+          )
+      } else if (input$sum_type == "sample"){
+        p <- ggplot2::ggplot(
+          plt_df,
+          ggplot2::aes(
+            x = wrapped_label,
+            # x = interaction(new_lab, mir_names),
+            y = rpm,
+            fill = mir_names,
+            text = paste(
+              "sample:", sample,
+              "<br>tissue:", new_lab,
+              "<br>mir_names:", mir_names,
+              "<br>rpm:", rpm),
+          )) +
+          ggplot2::geom_boxplot(
+            position = ggplot2::position_dodge(width = 0.75),
+            outlier.color = NA,
+            outlier.size = 0,
+            outlier.shape = NA) +
+          ggplot2::geom_jitter(position = ggplot2::position_dodge(width = 0.75)) +
+          ggplot2::scale_fill_manual(values = mirna_cols) +
+          ggplot2::scale_y_continuous(labels = scales::label_comma()) +
+          ggplot2::labs(y = "Reads per million (RPM)") +
+          ggplot2::theme_light() +
+          ggplot2::theme(
+            axis.text.x = ggplot2::element_text(size = 10, angle = 45, vjust = 1, hjust = 1),
+            axis.title.x = ggplot2::element_blank(),
+            axis.text.y = ggplot2::element_text(size = 10),
+            axis.title.y = ggplot2::element_text(size = 10),
+            legend.title = ggplot2::element_blank()
+          )
+      }
+      # plotly::ggplotly(p, tooltip = c("text"))
+    })
+
+    output$mirna_plot <- plotly::renderPlotly({
+      # validate(
+      #   need(nrow(mirna_selected()) > 0, "please select at least one miRNA")
+      # )
+      plotly::ggplotly(p(), tooltip = c("text"))
+    })
+
+    output$download_plot <- downloadHandler(
+      filename = function() {
+        paste("aimee_by_mirna.", version, ".png", sep = "")
+      },
+      content = function(file) {
+        ragg::agg_png(file, width = 8, height = 6, units = "in", res = 300)
+        print(p())
+        dev.off()
+      }
+    )
+
+    output$download_table <- downloadHandler(
+      filename = function() {
+        paste("aimee_by_mirna.", version, ".csv", sep = "")
+      },
+      content = function(file) {
+        write.csv(selected_table(), file, quote = FALSE, row.names = FALSE)
+      }
+    )
+
+    output$mirna_table <- DT::renderDT({
+      # req(mirna_summary())
+
+        selected_table()
+      # mirna_summary() %>%
+      #   dplyr::select(-tissue) %>%
+      #   dplyr::rename(
+      #     tissue = new_lab
+      #   )
+    })
   })
 }
 

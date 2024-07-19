@@ -10,7 +10,6 @@
 mod_RankAgg_ui <- function(id){
   ns <- NS(id)
   tagList(
-    tags$link(rel = "stylesheet", type = "text/css", href = "www/topmirs.css"),
     fluidPage(
       fluidRow(
         column(
@@ -67,28 +66,15 @@ mod_RankAgg_ui <- function(id){
             selected = unique(pre_rank$sample)
           )
         ),
-        # column(
-        #   width = 3,
-        #   shinyWidgets::checkboxGroupButtons(
-        #     ns("type_select"),
-        #     label = "Type",
-        #     choices = sort(unique(uid_rpms$type)),
-        #     direction = "horizontal",
-        #     justified = TRUE,
-        #     selected = "canon",
-        #   )
-        # ),
         column(
           width = 3,
           numericInput(
             ns("rpm_cutoff"),
             label = HTML("&ge; RPM cutoff"),
-            value = 50,
-            min = 0,
-            max = 500,
-            step = 10
+            value = 20,
+            min = 0
           )
-        )
+        ),
       ),
       fluidRow(
         column(
@@ -96,6 +82,24 @@ mod_RankAgg_ui <- function(id){
           shinydashboard::box(
             width = 12,
             plotOutput(ns("bump_chart"))
+          )
+        )
+      ),
+      fluidRow(
+        div(
+          style = "display: flex; justify-content: center; margin-bottom: 20px;",
+          div(style = "margin-right: 10px;", shiny::downloadButton(ns("download_bump"), "Bump chart")),
+          div(style = "margin-right: 10px;", shiny::downloadButton(ns("download_box"), "Box plot")),
+          div(style = "margin-right: 10px;", shiny::downloadButton(ns("download_table"), "Rank table")),
+        )
+      ),
+      fluidRow(
+        column(
+          width = 12,
+          tags$p(
+            "Rank aggregation is a method used to combine multiple ranked lists into a single consensus ranking. This approach helps identify the most consistently top-ranked items across different samples or conditions. For AIMEE, rank aggregation allows for the identification of miRNAs that are consistently highly expressed across multiple datasets or sources. Rank aggregation is implemented with the R package ",
+            tags$a(href = "https://cran.r-project.org/web/packages/RobustRankAggreg/RobustRankAggreg.pdf", "RobustRankAggreg", target = "_blank"),
+            "."
           )
         )
       ),
@@ -110,30 +114,16 @@ mod_RankAgg_ui <- function(id){
         )
       ),
       fluidRow(
-        column(
-          width = 5,
-          shinyWidgets::awesomeRadio(
-            ns("sum_type"),
-            label = "Summary table",
-            choices = c("Samples" = "samples", "Tissues" = "tissues"),
-            inline = TRUE,
-            width = "800px",
-            selected = "tissues",
-          )
-        )
-      ),
-      fluidRow(
         shinydashboard::box(
-          # title = "MTCARS",
           width = 12,
           DT::dataTableOutput(ns("tiss_table"))
         )
-      ),
-      fluidRow(
-        column(width = 3, textOutput(ns('team_text'))),
-        br(),
-        column(width = 3, textOutput(ns('team_text2')))
       )
+      # fluidRow(
+      #   column(width = 3, textOutput(ns('team_text'))),
+      #   br(),
+      #   column(width = 3, textOutput(ns('team_text2')))
+      # )
     )
   )
 }
@@ -141,44 +131,78 @@ mod_RankAgg_ui <- function(id){
 #' RankAgg Server Functions
 #'
 #' @noRd
-mod_RankAgg_server <- function(id){
+mod_RankAgg_server <- function(id, mirna_space){
   moduleServer( id, function(input, output, session){
     ns <- session$ns
 
-    # tissue_cols <- colorRampPalette(
-    #   RColorBrewer::brewer.pal(11, "Spectral")
-    # )(length(unique(tissues$tissue)))
-    # names(tissue_cols) <- unique(levels(tissues$tissue))
+    # unclear if keeping version information in exports
+    version <- "v0.9"
 
-    # source_selected <- reactive({
-    #   dplyr::filter(pre_rank, source %in% input$source_select)
-    # })
-    #
-    # observeEvent(source_selected(), {
-    #   choices <- unique(source_selected()$tissue)
-    #   shinyWidgets::updatePickerInput(session, inputId = "tiss_select", choices = choices)
-    # })
-    #
-    # tissue_selected <- reactive({
-    #   req(input$tiss_select)
-    #   dplyr::filter(source_selected(), tissue %in% input$tiss_select)
-    # })
-    #
-    # observeEvent(system_selected(), {
-    #   choices <- unique(tissue_selected()$tissue)
-    #   shinyWidgets::updatePickerInput(session, inputId = "sample_select", choices = choices)
-    # })
+    # pre-filter based on mirna space
+    spaced_data <- reactive({
+      req(mirna_space())
+
+      data <- pre_rank
+      mirna_space_val <- mirna_space()
+
+      if (mirna_space_val == "Exclusive") {
+        filter_ids <- mirna_space_ids %>%
+          dplyr::filter(filter_type == "Exclusive") %>%
+          dplyr::pull(id)
+        data <- data %>%
+          dplyr::filter(id %in% filter_ids)
+      } else if (mirna_space_val == "Exclusive repeat") {
+        filter_ids <- mirna_space_ids %>%
+          dplyr::filter(filter_type == "Exclusive repeat") %>%
+          dplyr::pull(id)
+        data <- data %>%
+          dplyr::filter(id %in% filter_ids)
+      } else if (mirna_space_val == "Ambiguous") {
+        filter_ids <- mirna_space_ids %>%
+          dplyr::filter(filter_type == "Ambiguous") %>%
+          dplyr::pull(id)
+        data <- data %>%
+          dplyr::filter(id %in% filter_ids)
+      } else if (mirna_space_val == "Ambiguous repeat") {
+        filter_ids <- mirna_space_ids %>%
+          dplyr::filter(filter_type == "Ambiguous repeat") %>%
+          dplyr::pull(id)
+        data <- data %>%
+          dplyr::filter(id %in% filter_ids)
+      }
+
+      return(data)
+    })
+
     source_selected <- reactive({
-      dplyr::filter(pre_rank, source %in% input$source_select)
+      validate(
+        need(input$source_select, "please select at least one source"),
+      )
+      req(spaced_data(), input$source_select)
+
+      spaced_data() %>%
+        dplyr::filter(source %in% input$source_select) %>%
+        dplyr::group_by(tissue) %>%
+        dplyr::filter(dplyr::n_distinct(source) == length(input$source_select)) %>%
+        dplyr::ungroup() #%>%
     })
 
     observeEvent(source_selected(), {
       choices <- unique(source_selected()$tissue)
-      shinyWidgets::updatePickerInput(session, inputId = "tiss_select", choices = choices)
+      if (length(choices) == 0) {
+        choices <- "0 shared tissues"
+        shinyWidgets::updatePickerInput(session, inputId = "tiss_select", choices = choices, selected = choices)
+      } else {
+        shinyWidgets::updatePickerInput(session, inputId = "tiss_select", choices = choices)
+      }
     })
 
     tissue_selected <- reactive({
-      # req(input$tiss_select)
+      req(source_selected())
+      validate(
+        need(input$tiss_select, "please select at least one tissue"),
+      )
+
       dplyr::filter(source_selected(), tissue %in% input$tiss_select)
     })
 
@@ -188,8 +212,10 @@ mod_RankAgg_server <- function(id){
     })
 
     sample_selected <- reactive({
-      # dplyr::filter(tissue_selected(), sample %in% input$sample_select)
-      req(input$sample_select)
+      req(tissue_selected())
+      validate(
+        need(input$sample_select, "please select at least one sample"),
+      )
 
       tissue_selected() %>%
         dplyr::filter(sample %in% input$sample_select) %>%
@@ -199,26 +225,43 @@ mod_RankAgg_server <- function(id){
 
     })
 
+    # common_validate <- function() {
+    #   validate(
+    #     need(input$sample_select, "please select at least one sample"),
+    #     need(input$tiss_select, "please select at least one tissue"),
+    #     need(input$source_select, "please select at least one source")
+    #   )
+    # }
+
     # generate rank list
     ranked_list <- reactive({
-      # req(input$rpm_cutoff)
+      req(input$rpm_cutoff)
 
       list_ge_rpm <- lapply(sample_selected()[, -c(1:3)], function(col) {
         ids_ge_val <- sample_selected()$mir_id[col >= input$rpm_cutoff]
         ranked <- ids_ge_val[order(col[col >= input$rpm_cutoff], decreasing = TRUE)]
       })
-
       list_ge_rpm
-
     })
 
     # apply rra
     rra_scores <- reactive({
+      # ranked_list <- ranked_list()
+      validate(
+        need(length(ranked_list()) > 0, "no ranked lists available")
+      )
+
       RobustRankAggreg::aggregateRanks(ranked_list(), full = FALSE)
     })
 
     # top n names, colors, and ranks
     top_names <- reactive({
+      req(rra_scores())
+
+      validate(
+        need(nrow(rra_scores()) > 0, "no ranks available")
+      )
+
       rra_scores() %>%
         dplyr::arrange(Score) %>%
         dplyr::slice_head(n = 10) %>%
@@ -229,18 +272,11 @@ mod_RankAgg_server <- function(id){
       req(top_names())
       cols <- hcl.colors(n = length(top_names()), palette = "zissou")
       names(cols) <- top_names()
-
       return(cols)
     })
-    # mir_cols <- hcl.colors(n = length(top_names()), palette = "zissou")
-    # names(mir_cols) <- top_names()
 
     top_ranks <- reactive({
       req(top_names())
-      # tops <- rra_scores() %>%
-      #   dplyr::arrange(Score) %>%
-      #   dplyr::slice_head(n = 10) %>%
-      #   dplyr::pull(Name)
 
       ids_to_ranks <- function(ids) {
         sapply(top_names(), function(id) {
@@ -276,22 +312,14 @@ mod_RankAgg_server <- function(id){
     })
 
     tissue_summary <- reactive({
-
       top_ranks()
-
     })
 
-    output$bump_chart <- renderPlot({
-      # req(mir_cols())
-      # shinipsum::random_ggplot(type = "line")
-
-      # df_long <- top_ranks() %>%
-      #   tidyr::pivot_longer(cols = -tissue_sample, names_to = "id", values_to = "rank") %>%
-      #   dplyr::filter(!is.na(rank)) %>%
-      #   dplyr::mutate_if(is.character, as.factor) %>%
-      #   dplyr::mutate(ranked_label = paste0("Rank ", match(id, top_names())))
-
-      # df_long$id <- factor(df_long$id, levels = rev(top_names()))
+    p_bump <- reactive({
+      req(top_ranks_long(), mir_cols())
+      validate(
+        need(input$sample_select, "XXXplease select at least one sample")
+      )
 
       reverse_log10 <- scales::trans_new(
         name = "reverse_log10",
@@ -300,10 +328,6 @@ mod_RankAgg_server <- function(id){
       )
 
       custom_breaks <- c(1:10, 10^seq(2, 5))
-
-      # mir_cols <- hcl.colors(n = length(top_names()), palette = "zissou")
-      # names(mir_cols) <- top_names()
-
       last_level <- tail(levels(top_ranks_long()$tissue_sample), 1)
 
       ggplot2::ggplot(top_ranks_long(),
@@ -342,24 +366,30 @@ mod_RankAgg_server <- function(id){
           legend.position = "none"
         )
 
-      # p + ggplot2::expand_limits(x = c(NA, 24))
-
     })
 
-    output$box_plot <- plotly::renderPlotly({
-      # req(mir_cols())
-      # shinipsum::random_ggplot(type = "line")
+    output$bump_chart <- renderPlot({
+      # common_validate()
+      p_bump()
+    })
 
-      # df_long <- top_ranks() %>%
-      #   tidyr::pivot_longer(cols = -tissue_sample, names_to = "id", values_to = "rank") %>%
-      #   dplyr::filter(!is.na(rank)) %>%
-      #   dplyr::mutate_if(is.character, as.factor)
-      #
-      # df_long$id <- factor(df_long$id, levels = rev(top_names()))
+    output$download_bump <- downloadHandler(
+      filename = function() {
+        paste("aimee_rank_agg.bump.", version, ".png", sep = "")
+      },
+      content = function(file) {
+        ragg::agg_png(file, width = 8, height = 6, units = "in", res = 300)
+        print(p_bump())
+        dev.off()
+      }
+    )
 
-      # custom_breaks <- c(1:10, 10^seq(2, 5))
+    p_box <- reactive({
+      req(top_ranks_long(), top_names())
+      validate(
+        need(input$tissue_select, "XXXplease select at least one tissue")
+      )
 
-      # breaks <- c(1:10, seq(20, max(df_long$rank)))
       custom_breaks <- function(limits) {
         union(1:10, scales::log_breaks()(limits))
       }
@@ -389,21 +419,36 @@ mod_RankAgg_server <- function(id){
         ) +
         ggplot2::coord_flip()
 
-      # p <- plotly::ggplotly(p) %>%
-      #   plotly::style(outliercolor = 'rgba(0,0,0,0)')
-      #
-      # return(p)
-
     })
+
+    output$box_plot <- plotly::renderPlotly({
+      # common_validate()
+      p_box()
+    })
+
+    output$download_box <- downloadHandler(
+      filename = function() {
+        paste("aimee_rank_agg.box.", version, ".png", sep = "")
+      },
+      content = function(file) {
+        ragg::agg_png(file, width = 8, height = 6, units = "in", res = 300)
+        print(p_box())
+        dev.off()
+      }
+    )
+
+    output$download_table <- downloadHandler(
+      filename = function() {
+        paste("aimee_rank_agg.", version, ".csv", sep = "")
+      },
+      content = function(file) {
+        write.csv(top_ranks_long(), file, quote = FALSE, row.names = FALSE)
+      }
+    )
 
     output$tiss_table <- DT::renderDT({
-      # tissue_summary()
       top_ranks_long()
     })
-
-    output$team_text = renderText(top_names())
-    output$team_text2 = renderText(names(mir_cols()))
-
   })
 }
 

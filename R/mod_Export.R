@@ -20,7 +20,7 @@ mod_Export_ui <- function(id){
       # p("Meta data for all included samples"),
       div(style = "display: flex; align-items: center;",
           span("Meta data for all included samples", style = "margin-right: 10px;"),
-          downloadButton(ns("download_sample_data"), "SAMPLE DATA")
+          downloadButton(ns("download_sample_data"), "Sample data")
       )
     ),
     shinydashboard::box(
@@ -33,7 +33,7 @@ mod_Export_ui <- function(id){
       # downloadButton(ns("download_canonical_data"), "CANONICAL RPMS")
       div(style = "display: flex; align-items: center;",
           span("Expression data set for identified canonical miRNAs", style = "margin-right: 10px;"),
-          downloadButton(ns("download_canonical_data"), "CANONICAL RPMS")
+          downloadButton(ns("download_canonical_data"), "RPMs")
       )
     ),
     shinydashboard::box(
@@ -44,7 +44,7 @@ mod_Export_ui <- function(id){
       width = 12,
       div(style = "display: flex; align-items: center;",
           span("Expression data set for identified isomiRs", style = "margin-right: 10px;"),
-          downloadButton(ns("download_isomir_data"), "ISOMIR RPMS")
+          downloadButton(ns("download_isomir_data"), "RPMs")
       )
     )
   )
@@ -65,8 +65,6 @@ mod_Export_server <- function(id){
         paste("aimee_meta.", version, ".csv", sep = "")
       },
       content = function(file) {
-        # Write the dataframe to a CSV file
-        # Replace `sample_data` with the actual dataframe you want to export
         write.csv(tissues %>% dplyr::select(-post_counts), file, row.names = FALSE)
       }
     )
@@ -76,8 +74,6 @@ mod_Export_server <- function(id){
         paste("aimee_canon_mirnas.", version, ".csv", sep = "")
       },
       content = function(file) {
-        # Write the dataframe to a CSV file
-        # Replace `sample_data` with the actual dataframe you want to export
         write.csv(canons, file, row.names = FALSE)
       }
     )
@@ -87,8 +83,6 @@ mod_Export_server <- function(id){
         paste("aimee_isomirs.", version, ".csv", sep = "")
       },
       content = function(file) {
-        # Write the dataframe to a CSV file
-        # Replace `sample_data` with the actual dataframe you want to export
         write.csv(uid_rpms, file, row.names = FALSE)
       }
     )
