@@ -119,11 +119,6 @@ mod_RankAgg_ui <- function(id){
           DT::dataTableOutput(ns("tiss_table"))
         )
       )
-      # fluidRow(
-      #   column(width = 3, textOutput(ns('team_text'))),
-      #   br(),
-      #   column(width = 3, textOutput(ns('team_text2')))
-      # )
     )
   )
 }
@@ -225,17 +220,9 @@ mod_RankAgg_server <- function(id, mirna_space){
 
     })
 
-    # common_validate <- function() {
-    #   validate(
-    #     need(input$sample_select, "please select at least one sample"),
-    #     need(input$tiss_select, "please select at least one tissue"),
-    #     need(input$source_select, "please select at least one source")
-    #   )
-    # }
-
     # generate rank list
     ranked_list <- reactive({
-      req(input$rpm_cutoff)
+      req(sample_selected(), input$rpm_cutoff)
 
       list_ge_rpm <- lapply(sample_selected()[, -c(1:3)], function(col) {
         ids_ge_val <- sample_selected()$mir_id[col >= input$rpm_cutoff]
@@ -246,7 +233,6 @@ mod_RankAgg_server <- function(id, mirna_space){
 
     # apply rra
     rra_scores <- reactive({
-      # ranked_list <- ranked_list()
       validate(
         need(length(ranked_list()) > 0, "no ranked lists available")
       )
@@ -256,8 +242,7 @@ mod_RankAgg_server <- function(id, mirna_space){
 
     # top n names, colors, and ranks
     top_names <- reactive({
-      req(rra_scores())
-
+      # req(rra_scores())
       validate(
         need(nrow(rra_scores()) > 0, "no ranks available")
       )
@@ -369,7 +354,6 @@ mod_RankAgg_server <- function(id, mirna_space){
     })
 
     output$bump_chart <- renderPlot({
-      # common_validate()
       p_bump()
     })
 
@@ -387,7 +371,7 @@ mod_RankAgg_server <- function(id, mirna_space){
     p_box <- reactive({
       req(top_ranks_long(), top_names())
       validate(
-        need(input$tissue_select, "XXXplease select at least one tissue")
+        need(input$tiss_select, "XXXplease select at least one tissue")
       )
 
       custom_breaks <- function(limits) {

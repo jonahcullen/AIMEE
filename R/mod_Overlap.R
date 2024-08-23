@@ -196,11 +196,6 @@ mod_Overlap_server <- function(id, mirna_space){
       upset_ready() %>%
         dplyr::filter(type %in% input$type_select) %>%
         dplyr::mutate(type = forcats::fct_relevel(type, "isomiR", "canon"))
-
-      # data <- upt %>%
-      #   dplyr::mutate(type = forcats::fct_relevel(type, "isomiR", "canon"))
-      #
-      # return(data)
     })
 
     n_intersections <- reactive({
@@ -216,7 +211,6 @@ mod_Overlap_server <- function(id, mirna_space){
     pull_ids <- reactive({
       req(type_selected())
 
-      # type_selected() %>% dplyr::pull(name)
       type_selected() %>%
         dplyr::select(-type) %>%
         dplyr::filter(if_any(-name, ~ . == TRUE)) %>%

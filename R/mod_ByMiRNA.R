@@ -111,7 +111,7 @@ mod_ByMiRNA_ui <- function(id){
 #' ByMiRNA Server Functions
 #'
 #' @noRd
-mod_ByMiRNA_server <- function(id){
+mod_ByMiRNA_server <- function(id, mirna_space){
   moduleServer( id, function(input, output, session){
     ns <- session$ns
 
@@ -128,18 +128,54 @@ mod_ByMiRNA_server <- function(id){
     )(length(unique(tissues$new_lab)))
     names(tissue_cols) <- unique(levels(tissues$new_lab))
 
-    source_selected <- reactive({
-      # req(input$source_select)
-      dplyr::filter(canons, source %in% input$source_select)
-      # print(paste0("sou Vrce_select: ",nrow(selected)))
-      # print(head(selected))
-      # return(selected)
+    spaced_data <- reactive({
+      req(mirna_space())
+
+      data <- canons
+      mirna_space_val <- mirna_space()
+
+      if (mirna_space_val == "Exclusive") {
+        filter_ids <- mirna_space_ids %>%
+          dplyr::filter(filter_type == "Exclusive") %>%
+          dplyr::pull(id)
+        data <- data %>%
+          dplyr::filter(id %in% filter_ids)
+      } else if (mirna_space_val == "Exclusive repeat") {
+        filter_ids <- mirna_space_ids %>%
+          dplyr::filter(filter_type == "Exclusive repeat") %>%
+          dplyr::pull(id)
+        data <- data %>%
+          dplyr::filter(id %in% filter_ids)
+      } else if (mirna_space_val == "Ambiguous") {
+        filter_ids <- mirna_space_ids %>%
+          dplyr::filter(filter_type == "Ambiguous") %>%
+          dplyr::pull(id)
+        data <- data %>%
+          dplyr::filter(id %in% filter_ids)
+      } else if (mirna_space_val == "Ambiguous repeat") {
+        filter_ids <- mirna_space_ids %>%
+          dplyr::filter(filter_type == "Ambiguous repeat") %>%
+          dplyr::pull(id)
+        data <- data %>%
+          dplyr::filter(id %in% filter_ids)
+      }
+
+      return(data)
     })
 
-    # observeEvent(source_selected(), {
-    #   choices <- unique(source_selected()$mir_names)
-    #   shinyWidgets::updatePickerInput(session, inputId = "mirna_select", choices = choices)
-    # })
+    source_selected <- reactive({
+      validate(
+        need(input$source_select, "please select at least one source"),
+      )
+      req(spaced_data(), input$source_select)
+
+      # dplyr::filter(spaced_data(), source %in% input$source_select)
+      spaced_data() %>%
+        dplyr::filter(source %in% input$source_select) %>%
+        dplyr::group_by(tissue) %>%
+        dplyr::filter(dplyr::n_distinct(source) == length(input$source_select)) %>%
+        dplyr::ungroup()
+    })
 
     observeEvent(source_selected(), {
       choices <- unique(source_selected()$new_lab)
@@ -147,9 +183,9 @@ mod_ByMiRNA_server <- function(id){
     })
 
     tissue_selected <- reactive({
-      # req(input$tiss_select)
+      req(source_selected())
       validate(
-        need(nrow(source_selected()) > 0, "please select at least one source")
+        need(input$tiss_select, "please select at least one tissue")
       )
 
       dplyr::filter(source_selected(), new_lab %in% input$tiss_select)
@@ -167,16 +203,11 @@ mod_ByMiRNA_server <- function(id){
       )
 
       dplyr::filter(tissue_selected(), mir_names %in% input$mirna_select)
-      # print(paste0("mirna_selected: ", nrow(selected)))
-      # print(head(selected))
-      # return(selected)
     })
 
     mirna_summary <- reactive({
       req(mirna_selected())
-      # validate(
-      #   need(nrow(mirna_selected()) > 0, "please select an miRNA")
-      # )
+
       if (input$sum_type == "tissue"){
         mirna_selected() %>%
           dplyr::group_by(tissue, new_lab, mir_names, Read) %>%
@@ -213,7 +244,6 @@ mod_ByMiRNA_server <- function(id){
         )
     })
 
-    # output$mirna_plot <- plotly::renderPlotly({
     p <- reactive({
       validate(
         need(nrow(mirna_selected()) > 0, "please select at least one miRNA")
@@ -283,7 +313,6 @@ mod_ByMiRNA_server <- function(id){
             legend.title = ggplot2::element_blank()
           )
       }
-      # plotly::ggplotly(p, tooltip = c("text"))
     })
 
     output$mirna_plot <- plotly::renderPlotly({
@@ -317,11 +346,6 @@ mod_ByMiRNA_server <- function(id){
       # req(mirna_summary())
 
         selected_table()
-      # mirna_summary() %>%
-      #   dplyr::select(-tissue) %>%
-      #   dplyr::rename(
-      #     tissue = new_lab
-      #   )
     })
   })
 }

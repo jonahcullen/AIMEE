@@ -23,6 +23,6 @@ app_server <- function(input, output, session) {
   mod_TopMirs_server("TopMirs_1", mirna_space)
   mod_Overlap_server("Overlap_1", mirna_space)
   mod_RankAgg_server("RankAgg_1", mirna_space)
-  mod_ByMiRNA_server("ByMiRNA_1")
+  mod_ByMiRNA_server("ByMiRNA_1", mirna_space)
   mod_Search_server("Search_1")
 }

@@ -115,10 +115,6 @@ mod_ReadLoss_server <- function(id){
     # unclear if keeping version information in exports
     version <- "v0.9"
 
-    # source_selected <- reactive({
-    #   dplyr::filter(proc_cts, source %in% input$source_select)
-    # })
-
     source_selected <- reactive({
       proc_cts %>%
         dplyr::filter(source %in% input$source_select) %>%
@@ -126,11 +122,6 @@ mod_ReadLoss_server <- function(id){
         dplyr::filter(dplyr::n_distinct(source) == length(input$source_select)) %>%
         dplyr::ungroup()
     })
-
-    # observeEvent(source_selected(), {
-    #   choices <- unique(source_selected()$tissue)
-    #   shinyWidgets::updatePickerInput(session, inputId = "tiss_select", choices = choices)
-    # })
 
     observeEvent(source_selected(), {
       choices <- unique(source_selected()$tissue)

@@ -106,24 +106,6 @@ mod_Tissues_server <- function(id){
     )(length(unique(tissues$tissue)))
     names(tissue_cols) <- unique(levels(tissues$tissue))
 
-    # source_selected <- reactive({
-    #   tissues %>%
-    #     dplyr::filter(source %in% input$source_select) %>%
-    #     dplyr::group_by(tissue) %>%
-    #     dplyr::filter(dplyr::n_distinct(source) == length(input$source_select)) %>%
-    #     dplyr::ungroup() #%>%
-    # })
-
-    # observeEvent(source_selected(), {
-    #   choices <- unique(source_selected()$system)
-    #   if (length(choices) == 0) {
-    #     choices <- "0 shared systems"
-    #     shinyWidgets::updatePickerInput(session, inputId = "system_select", choices = choices, selected = choices)
-    #   } else {
-    #     shinyWidgets::updatePickerInput(session, inputId = "system_select", choices = choices)
-    #   }
-    # })
-
     source_selected <- reactive({
       dplyr::filter(tissues, source %in% input$source_select)
     })
@@ -140,7 +122,7 @@ mod_Tissues_server <- function(id){
 
     observeEvent(system_selected(), {
       choices <- unique(system_selected()$tissue)
-      # shinyWidgets::updatePickerInput(session, inputId = "tiss_select", choices = choices)
+
       if (length(choices) == 0) {
         choices <- "0 shared tissues"
         shinyWidgets::updatePickerInput(session, inputId = "tiss_select", choices = choices, selected = choices)
