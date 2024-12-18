@@ -7,6 +7,8 @@
 #' @noRd
 #'
 #' @importFrom shiny NS tagList
+utils::globalVariables(c("tissues", "canons", "uid_rpms", "post_counts"))
+
 mod_Export_ui <- function(id){
   ns <- NS(id)
   tagList(
@@ -65,7 +67,7 @@ mod_Export_server <- function(id){
         paste("aimee_meta.", version, ".csv", sep = "")
       },
       content = function(file) {
-        write.csv(tissues %>% dplyr::select(-post_counts), file, row.names = FALSE)
+          utils::write.csv(tissues %>% dplyr::select(-post_counts), file, row.names = FALSE)
       }
     )
 
@@ -74,7 +76,7 @@ mod_Export_server <- function(id){
         paste("aimee_canon_mirnas.", version, ".csv", sep = "")
       },
       content = function(file) {
-        write.csv(canons, file, row.names = FALSE)
+          utils::write.csv(canons, file, row.names = FALSE)
       }
     )
 
@@ -83,7 +85,7 @@ mod_Export_server <- function(id){
         paste("aimee_isomirs.", version, ".csv", sep = "")
       },
       content = function(file) {
-        write.csv(uid_rpms, file, row.names = FALSE)
+          utils::write.csv(uid_rpms, file, row.names = FALSE)
       }
     )
 

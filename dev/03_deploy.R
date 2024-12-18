@@ -38,9 +38,24 @@ golem::add_dockerfile_with_renv()
 ## If you want to deploy to ShinyProxy
 golem::add_dockerfile_with_renv_shinyproxy()
 
+# rsconnect::setAccountInfo(name='aimee-app',
+#                           token=GET_FROM_ENV,
+#                           secret=GET_FROM_ENV)
+
+# library(AIMEE)
+prof <- profvis::profvis({
+  print(
+    AIMEE::run_app()
+  )
+})
+
+htmlwidgets::saveWidget(prof, "profiling_results.html")
 
 # Deploy to Posit Connect or ShinyApps.io
 # In command line.
+devtools::document()
+devtools::check()
+
 rsconnect::deployApp(
   appName = desc::desc_get_field("Package"),
   appTitle = desc::desc_get_field("Package"),

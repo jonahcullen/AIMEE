@@ -32,8 +32,3 @@ tissues <- read.table("data-raw/se_coldata_final.tsv", header = TRUE, sep = "\t"
 usethis::use_data(tissues, overwrite = TRUE)
 
 # TO DO: Document your data (see 'https://r-pkgs.org/data.html')
-
-# tissue_cols <- dichromat::colorRampPalette(
-#   rev(RColorBrewer::brewer.pal(11, "Spectral")) )(length(unique(tissues$tissue)))
-# names(tissue_cols) <- unique(levels(tissues$tissue))
-

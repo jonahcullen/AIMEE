@@ -7,6 +7,9 @@
 #' @noRd
 #'
 #' @importFrom shiny NS tagList
+utils::globalVariables(c("tissues", "system", "new_lab", "tissue", "sample",
+                         "source", "breed", "sex"))
+
 mod_Tissues_ui <- function(id){
   ns <- NS(id)
   tagList(
@@ -101,7 +104,7 @@ mod_Tissues_server <- function(id){
     # unclear if keeping version information in exports
     version <- "v0.9"
 
-    tissue_cols <- colorRampPalette(
+    tissue_cols <- grDevices::colorRampPalette(
       rev(RColorBrewer::brewer.pal(11, "Spectral"))
     )(length(unique(tissues$tissue)))
     names(tissue_cols) <- unique(levels(tissues$tissue))
@@ -186,7 +189,7 @@ mod_Tissues_server <- function(id){
         paste("aimee_samples.", version, ".csv", sep = "")
       },
       content = function(file) {
-        write.csv(selected_table(), file, quote = FALSE, row.names = FALSE)
+          utils::write.csv(selected_table(), file, quote = FALSE, row.names = FALSE)
       }
     )
 
@@ -197,7 +200,7 @@ mod_Tissues_server <- function(id){
       content = function(file) {
         ragg::agg_png(file, width = 10, height = 8, units = "in", res = 300)
         print(ggplot2::last_plot())
-        dev.off()
+        grDevices::dev.off()
       }
     )
 

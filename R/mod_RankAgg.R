@@ -7,6 +7,10 @@
 #' @noRd
 #'
 #' @importFrom shiny NS tagList
+utils::globalVariables(c("pre_rank", "mirna_space_ids", "filter_type", "tissue",
+                         "sample", "source", "mir_id", "mir_names", "id", "rpm",
+                         "tissue_sample", "Name", "Score", "aggregated_rank"))
+
 mod_RankAgg_ui <- function(id){
   ns <- NS(id)
   tagList(
@@ -53,7 +57,7 @@ mod_RankAgg_ui <- function(id){
           shinyWidgets::pickerInput(
             ns("sample_select"),
             label = "Sample",
-            choices = sort(unique(na.omit(as.character(pre_rank$sample)))),
+            choices = sort(unique(stats::na.omit(as.character(pre_rank$sample)))),
             options = list(
               `virtualScroll` = 10,
               size = 10,
@@ -255,7 +259,7 @@ mod_RankAgg_server <- function(id, mirna_space){
 
     mir_cols <- reactive({
       req(top_names())
-      cols <- hcl.colors(n = length(top_names()), palette = "zissou")
+      cols <- grDevices::hcl.colors(n = length(top_names()), palette = "zissou")
       names(cols) <- top_names()
       return(cols)
     })
@@ -313,7 +317,7 @@ mod_RankAgg_server <- function(id, mirna_space){
       )
 
       custom_breaks <- c(1:10, 10^seq(2, 5))
-      last_level <- tail(levels(top_ranks_long()$tissue_sample), 1)
+      last_level <- utils::tail(levels(top_ranks_long()$tissue_sample), 1)
 
       ggplot2::ggplot(top_ranks_long(),
                   ggplot2::aes(
@@ -364,7 +368,7 @@ mod_RankAgg_server <- function(id, mirna_space){
       content = function(file) {
         ragg::agg_png(file, width = 8, height = 6, units = "in", res = 300)
         print(p_bump())
-        dev.off()
+        grDevices::dev.off()
       }
     )
 
@@ -417,7 +421,7 @@ mod_RankAgg_server <- function(id, mirna_space){
       content = function(file) {
         ragg::agg_png(file, width = 8, height = 6, units = "in", res = 300)
         print(p_box())
-        dev.off()
+        grDevices::dev.off()
       }
     )
 
@@ -426,7 +430,7 @@ mod_RankAgg_server <- function(id, mirna_space){
         paste("aimee_rank_agg.", version, ".csv", sep = "")
       },
       content = function(file) {
-        write.csv(top_ranks_long(), file, quote = FALSE, row.names = FALSE)
+          utils::write.csv(top_ranks_long(), file, quote = FALSE, row.names = FALSE)
       }
     )
 

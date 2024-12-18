@@ -7,6 +7,10 @@
 #' @noRd
 #'
 #' @importFrom shiny NS tagList
+utils::globalVariables(c("uid_rpms", "mirna_space_ids", "filter_type", "new_lab",
+                         "parents", "mir_names", "variants", "rpm", "presence",
+                         "type", "name", "count", "uid_cts", "where"))
+
 mod_Overlap_ui <- function(id){
   ns <- NS(id)
   tagList(
@@ -183,8 +187,8 @@ mod_Overlap_server <- function(id, mirna_space){
           values_from = presence,
           values_fill = list(presence = 0)) %>%
         dplyr::group_by(id, type) %>%
-        dplyr::summarise(across(where(is.numeric), max), .groups = 'drop') %>%
-        dplyr::mutate(across(where(is.numeric), ~ . > 0)) %>%
+        dplyr::summarise(dplyr::across(where(is.numeric), max), .groups = 'drop') %>%
+        dplyr::mutate(dplyr::across(where(is.numeric), ~ . > 0)) %>%
         dplyr::rename(name = id) %>% # column id results in duplicated columns error from complexupset
         dplyr::mutate(type = factor(type)) #%>%
         # dplyr::mutate(type = forcats::fct_relevel(type, "isomiR", "canon"))
@@ -213,7 +217,7 @@ mod_Overlap_server <- function(id, mirna_space){
 
       type_selected() %>%
         dplyr::select(-type) %>%
-        dplyr::filter(if_any(-name, ~ . == TRUE)) %>%
+        dplyr::filter(dplyr::if_any(-name, ~ . == TRUE)) %>%
         dplyr::pull(name)
     })
 
@@ -274,7 +278,7 @@ mod_Overlap_server <- function(id, mirna_space){
         paste("aimee_overlap_table.", version, ".csv", sep = "")
       },
       content = function(file) {
-        write.csv(type_selected(), file, quote = FALSE, row.names = FALSE)
+          utils::write.csv(type_selected(), file, quote = FALSE, row.names = FALSE)
       }
     )
 
@@ -292,7 +296,7 @@ mod_Overlap_server <- function(id, mirna_space){
           # dplyr::filter(rpm > input$rpm_cutoff) %>%
           dplyr::mutate(variants = gsub(",", "&", variants))
 
-        write.csv(filter_df, file, quote = FALSE, row.names = FALSE)
+        utils::write.csv(filter_df, file, quote = FALSE, row.names = FALSE)
       }
     )
 
@@ -309,7 +313,7 @@ mod_Overlap_server <- function(id, mirna_space){
           dplyr::filter(type %in% input$type_select) %>%
           dplyr::mutate(variants = gsub(",", "&", variants))
 
-        write.csv(filter_df, file, quote = FALSE, row.names = FALSE)
+        utils::write.csv(filter_df, file, quote = FALSE, row.names = FALSE)
       }
     )
 
@@ -320,7 +324,7 @@ mod_Overlap_server <- function(id, mirna_space){
       content = function(file) {
         ragg::agg_png(file, width = 10, height = 8, units = "in", res = 300)
         print(ggplot2::last_plot())
-        dev.off()
+        grDevices::dev.off()
       }
     )
   })

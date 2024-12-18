@@ -1,7 +1,7 @@
 Package: AIMEE
 Title: Animal IsomiR and MicroRNA Expression Explorer: Uniformly Processed
     Small RNA-seq Dataset Exploration
-Version: 0.0.0.9000
+Version: 0.1.0
 Authors@R: 
     person("Jonah", "Cullen", , "cull0084@umn.edu", role = c("cre", "aut"))
 Description: Thjis is a placeholder.
@@ -11,13 +11,18 @@ BugReports: https://github.com/jonahcullen/AIMEE.git/issues
 Imports: 
     ComplexUpset,
     config (>= 0.3.2),
+    data.table,
     dplyr,
     DT,
     forcats,
     ggbeeswarm,
     ggplot2,
+    ggrepel,
     golem (>= 0.4.1),
+    grDevices,
     magrittr,
+    pkgload,
+    plotly,
     ragg,
     RColorBrewer,
     rlang,
@@ -28,8 +33,11 @@ Imports:
     shinydashboard,
     shinydashboardPlus,
     shinyWidgets,
+    stats,
     stringr,
-    tidyr
+    tibble,
+    tidyr,
+    utils
 Suggests: 
     spelling,
     testthat (>= 3.0.0)

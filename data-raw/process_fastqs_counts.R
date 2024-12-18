@@ -13,7 +13,7 @@ proc_cts <- read.table("data-raw/process_fastqs_counts.csv", header = TRUE, sep 
   dplyr::right_join(tissues %>% dplyr::select(-post_counts)) %>%
   tidyr::pivot_longer(cols = dplyr::all_of(steps), names_to = "step", values_to = "count") %>%
   dplyr::mutate(
-    step = factor(step, levels = dplyr::all_of(steps)),
+    step = factor(.data$step, levels = dplyr::all_of(steps)),
     step = dplyr::recode(
       step,
       "seq_depth" = "library_size",

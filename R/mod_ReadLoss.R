@@ -7,6 +7,11 @@
 #' @noRd
 #'
 #' @importFrom shiny NS tagList
+utils::globalVariables(c("proc_cts", "tissues", "tissue", "sample", "count",
+                         "step", "source", "new_lab", "breed", "sex",
+                         "tissue_sample", "source_mod", "tissue_mean", "lower",
+                         "upper"))
+
 mod_ReadLoss_ui <- function(id){
   ns <- NS(id)
   tagList(
@@ -54,7 +59,7 @@ mod_ReadLoss_ui <- function(id){
           shinyWidgets::pickerInput(
             ns("sample_select"),
             label = "Sample",
-            choices = sort(unique(na.omit(as.character(pre_rank$sample)))),
+            choices = sort(unique(stats::na.omit(as.character(pre_rank$sample)))),
             options = list(
               `virtualScroll` = 10,
               size = 10,
@@ -154,8 +159,8 @@ mod_ReadLoss_server <- function(id){
           dplyr::group_by(new_lab, source, step) %>%
           dplyr::summarise(
             tissue_mean = mean(count),
-            lower = tissue_mean - qnorm(0.975)*sd(count),
-            upper = tissue_mean + qnorm(0.975)*sd(count)
+            lower = tissue_mean - stats::qnorm(0.975)*stats::sd(count),
+            upper = tissue_mean + stats::qnorm(0.975)*stats::sd(count)
           ) %>%
           dplyr::mutate(
             tissue_mean = round(tissue_mean, 2),
@@ -190,7 +195,7 @@ mod_ReadLoss_server <- function(id){
     })
 
     # common tissue colors from tissue data
-    tissue_cols <- colorRampPalette(
+    tissue_cols <- grDevices::colorRampPalette(
       rev(RColorBrewer::brewer.pal(11, "Spectral"))
     )(length(unique(tissues$new_lab)))
     names(tissue_cols) <- unique(levels(tissues$new_lab))
@@ -272,7 +277,7 @@ mod_ReadLoss_server <- function(id){
         paste("aimee_attrition.", version, ".csv", sep = "")
       },
       content = function(file) {
-        write.csv(selected_table(), file, quote = FALSE, row.names = FALSE)
+          utils::write.csv(selected_table(), file, quote = FALSE, row.names = FALSE)
       }
     )
 
@@ -295,7 +300,7 @@ mod_ReadLoss_server <- function(id){
           )
 
         print(p)
-        dev.off()
+        grDevices::dev.off()
       }
     )
 

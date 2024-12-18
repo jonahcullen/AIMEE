@@ -7,6 +7,10 @@
 #' @noRd
 #'
 #' @importFrom shiny NS tagList
+utils::globalVariables(c("canons", "mirna_space_ids", "filter_type", "new_lab",
+                         "id", "sample", "rpm", "tissue_sample", "Read", "tissue",
+                         "mir_names", "wrapped_label"))
+
 mod_ByMiRNA_ui <- function(id){
   ns <- NS(id)
   tagList(
@@ -118,12 +122,12 @@ mod_ByMiRNA_server <- function(id, mirna_space){
     # unclear if keeping version information in exports
     version <- "v0.9"
 
-    mirna_cols <- colorRampPalette(
+    mirna_cols <- grDevices::colorRampPalette(
       RColorBrewer::brewer.pal(6, "Dark2")
     )(length(unique(canons$mir_names)))
     names(mirna_cols) <- unique(levels(canons$mir_names))
 
-    tissue_cols <- colorRampPalette(
+    tissue_cols <- grDevices::colorRampPalette(
       rev(RColorBrewer::brewer.pal(11, "Spectral"))
     )(length(unique(tissues$new_lab)))
     names(tissue_cols) <- unique(levels(tissues$new_lab))
@@ -214,13 +218,13 @@ mod_ByMiRNA_server <- function(id, mirna_space){
           # dplyr::filter(any(rpm != 0)) %>%
           dplyr::summarise(
             mean = round(mean(rpm), 2),
-            SEM = round(sd(rpm)/sqrt(dplyr::n()), 2),
-            median = round(median(rpm), 2),
-            Q1 = round(quantile(rpm, 0.25), 2),
-            Q3 = round(quantile(rpm, 0.75), 2)
+            SEM = round(stats::sd(rpm)/sqrt(dplyr::n()), 2),
+            median = round(stats::median(rpm), 2),
+            Q1 = round(stats::quantile(rpm, 0.25), 2),
+            Q3 = round(stats::quantile(rpm, 0.75), 2)
           ) %>%
           dplyr::ungroup() %>%
-          dplyr::arrange(desc(mean))
+          dplyr::arrange(dplyr::desc(mean))
       } else if (input$sum_type == "sample"){
         mirna_selected() %>%
           dplyr::mutate(
@@ -329,7 +333,7 @@ mod_ByMiRNA_server <- function(id, mirna_space){
       content = function(file) {
         ragg::agg_png(file, width = 8, height = 6, units = "in", res = 300)
         print(p())
-        dev.off()
+        grDevices::dev.off()
       }
     )
 
@@ -338,7 +342,7 @@ mod_ByMiRNA_server <- function(id, mirna_space){
         paste("aimee_by_mirna.", version, ".csv", sep = "")
       },
       content = function(file) {
-        write.csv(selected_table(), file, quote = FALSE, row.names = FALSE)
+          utils::write.csv(selected_table(), file, quote = FALSE, row.names = FALSE)
       }
     )
 

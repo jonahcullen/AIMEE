@@ -7,6 +7,10 @@
 #' @noRd
 #'
 #' @importFrom shiny NS tagList
+utils::globalVariables(c("uid_rpms", "mirna_space_ids", "filter_type", "new_lab",
+                         "variants", "type", "id", "rpm", "tissue", "system",
+                         "sample", "breed", "sex", "source", "mir_names", "mir_names_ordered"))
+
 mod_TopMirs_ui <- function(id){
   ns <- NS(id)
   tagList(
@@ -184,7 +188,7 @@ mod_TopMirs_server <- function(id, mirna_space){
         dplyr::filter(type %in% input$type_select) %>%
         tidyr::separate_rows(variants, sep = "\\|") %>%
         dplyr::distinct() %>%
-        dplyr::group_by(across(-variants)) %>%
+        dplyr::group_by(dplyr::across(-variants)) %>%
         dplyr::mutate(variants = stringr::str_c(unique(variants), collapse = "|")) %>%
         dplyr::distinct() %>%
         dplyr::ungroup() %>%
@@ -192,13 +196,13 @@ mod_TopMirs_server <- function(id, mirna_space){
         dplyr::filter(any(rpm != 0)) %>%
         dplyr::summarise(
           mean = round(mean(rpm), 2),
-          SEM = round(sd(rpm)/sqrt(dplyr::n()), 2),
-          median = round(median(rpm), 2),
-          Q1 = round(quantile(rpm, 0.25), 2),
-          Q3 = round(quantile(rpm, 0.75), 2)
+          SEM = round(stats::sd(rpm)/sqrt(dplyr::n()), 2),
+          median = round(stats::median(rpm), 2),
+          Q1 = round(stats::quantile(rpm, 0.25), 2),
+          Q3 = round(stats::quantile(rpm, 0.75), 2)
         ) %>%
         dplyr::ungroup() %>%
-        dplyr::arrange(desc(mean)) %>%
+        dplyr::arrange(dplyr::desc(mean)) %>%
         dplyr::distinct(id, .keep_all = TRUE) %>%
         dplyr::slice_head(n = as.numeric(input$top_n))
     })
@@ -270,7 +274,7 @@ mod_TopMirs_server <- function(id, mirna_space){
         ggplot2::geom_violin(alpha = 0.8) +
         ggbeeswarm::geom_quasirandom(method = "smiley", width = 0.1) +
         ggplot2::scale_fill_manual(
-          values = colorRampPalette(
+          values = grDevices::colorRampPalette(
             RColorBrewer::brewer.pal(6, "Accent")
           )(input$top_n)
         ) +
@@ -295,7 +299,7 @@ mod_TopMirs_server <- function(id, mirna_space){
       content = function(file) {
         ragg::agg_png(file, width = 8, height = 6, units = "in", res = 300)
         print(ggplot2::last_plot())
-        dev.off()
+        grDevices::dev.off()
       }
     )
 
@@ -304,7 +308,7 @@ mod_TopMirs_server <- function(id, mirna_space){
         paste("aimee_top_mirs.", version, ".csv", sep = "")
       },
       content = function(file) {
-        write.csv(selected_table(), file, quote = FALSE, row.names = FALSE)
+          utils::write.csv(selected_table(), file, quote = FALSE, row.names = FALSE)
       }
     )
 

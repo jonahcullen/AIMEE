@@ -7,6 +7,10 @@
 #' @noRd
 #'
 #' @importFrom shiny NS tagList
+utils::globalVariables(c("proc_cts", "source", "tissue", "new_lab", "step",
+                         "count", "tissue_sample", "tissue_pop", "tissue_alpha",
+                         "se.X", "se.Y", ".data", "tissue_name", ":="))
+
 mod_ProcExplore_ui <- function(id){
   ns <- NS(id)
   tagList(
@@ -56,7 +60,7 @@ mod_ProcExplore_ui <- function(id){
           shinyWidgets::pickerInput(
             ns("x_axis"),
             label = "X axis",
-            choices = c(unique(na.omit(as.character(proc_cts$step))), "Ref_miRs", "IsomiRs"),
+            choices = c(unique(stats::na.omit(as.character(proc_cts$step))), "Ref_miRs", "IsomiRs"),
             options = list(
               `virtualScroll` = 10,
               size = 10,
@@ -67,7 +71,7 @@ mod_ProcExplore_ui <- function(id){
           shinyWidgets::pickerInput(
             ns("y_axis"),
             label = "Y axis",
-            choices = c(unique(na.omit(as.character(proc_cts$step))), "Ref_miRs", "IsomiRs"),
+            choices = c(unique(stats::na.omit(as.character(proc_cts$step))), "Ref_miRs", "IsomiRs"),
             options = list(
               `virtualScroll` = 10,
               size = 10,
@@ -154,9 +158,9 @@ mod_ProcExplore_server <- function(id){
       )
     }
 
-    f <- function(z)sd(z)/sqrt(length(z)) # function to calculate std.err
+    f <- function(z)stats::sd(z)/sqrt(length(z)) # function to calculate std.err
 
-    tissue_cols <- colorRampPalette(
+    tissue_cols <- grDevices::colorRampPalette(
       rev(RColorBrewer::brewer.pal(11, "Spectral"))
     )(length(unique(tissues$tissue)))
     names(tissue_cols) <- unique(levels(tissues$tissue))
@@ -198,11 +202,11 @@ mod_ProcExplore_server <- function(id){
       x_col <- quote_col_name(input$x_axis)
       y_col <- quote_col_name(input$y_axis)
 
-      form <- as.formula(paste("cbind(", x_col, ", ", y_col, ") ~ tissue"))
-      means <- aggregate(form, data = plt_df(), FUN = mean)
+      form <- stats::as.formula(paste("cbind(", x_col, ", ", y_col, ") ~ tissue"))
+      means <- stats::aggregate(form, data = plt_df(), FUN = mean)
 
-      form_se <- as.formula(paste("cbind(se.X = ", x_col, ", se.Y = ", y_col, ") ~ tissue"))
-      se <- aggregate(form_se, data = plt_df(), FUN = f)
+      form_se <- stats::as.formula(paste("cbind(se.X = ", x_col, ", se.Y = ", y_col, ") ~ tissue"))
+      se <- stats::aggregate(form_se, data = plt_df(), FUN = f)
 
       df <- merge(means, se, by = "tissue") %>%
         dplyr::left_join(
@@ -308,7 +312,7 @@ mod_ProcExplore_server <- function(id){
         paste("aimee_proc_explore.tissues.", version, ".csv", sep = "")
       },
       content = function(file) {
-        write.csv(filtered_tiss_table(), file, quote = FALSE, row.names = FALSE)
+          utils::write.csv(filtered_tiss_table(), file, quote = FALSE, row.names = FALSE)
       }
     )
 
@@ -317,7 +321,7 @@ mod_ProcExplore_server <- function(id){
         paste("aimee_proc_explore.centroids.", version, ".csv", sep = "")
       },
       content = function(file) {
-        write.csv(filtered_cent_table(), file, quote = FALSE, row.names = FALSE)
+          utils::write.csv(filtered_cent_table(), file, quote = FALSE, row.names = FALSE)
       }
     )
 
@@ -328,7 +332,7 @@ mod_ProcExplore_server <- function(id){
       content = function(file) {
         ragg::agg_png(file, width = 8, height = 5, units = "in", res = 300)
         print(ggplot2::last_plot())
-        dev.off()
+        grDevices::dev.off()
       }
     )
 

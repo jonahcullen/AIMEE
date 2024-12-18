@@ -32,6 +32,12 @@ usethis::use_package("RobustRankAggreg")
 usethis::use_package("rlang")
 usethis::use_package("ComplexUpset")
 usethis::use_package("ragg")
+usethis::use_package("grDevices")
+usethis::use_package("stats")
+usethis::use_package("utils")
+usethis::use_package("ggrepel")
+usethis::use_package("plotly")
+usethis::use_package("tibble")
 usethis::use_pipe()
 # attachment::att_amend_desc()
 
@@ -73,6 +79,8 @@ usethis::use_data_raw(name = "isomir_rpm.isomirmap_exp_filt", open = FALSE)
 usethis::use_data_raw(name = "isomir_cts.isomirmap_exp_filt", open = FALSE)
 usethis::use_data_raw(name = "process_fastqs_counts", open = FALSE)
 
+usethis::use_r("mirna_space_ids")
+
 ## Tests ----
 ## Add one line by test you want to create
 usethis::use_test("app")
@@ -90,7 +98,8 @@ devtools::build_vignettes()
 usethis::use_coverage()
 
 # Create a summary readme for the testthat subdirectory
-covrpage::covrpage()
+# covrpage::covrpage()
+# COMMENTED OUT DURING shinyapp.io PUSH
 
 ## CI ----
 ## Use this part of the script if you need to set up a CI
