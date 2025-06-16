@@ -86,6 +86,44 @@ mod_ReadLoss_ui <- function(id){
       ),
       fluidRow(
         column(
+          width = 3,
+          shinyWidgets::pickerInput(
+            ns("breed_select"),
+            label = "Breed",
+            choices = sort(unique(pre_rank$breed)),
+            selected = sort(unique(pre_rank$breed)),
+            options = list(
+              `virtualScroll` = 10,
+              size = 10,
+              `actions-box` = TRUE,
+              `live-search` = TRUE,
+              `selected-text-format`= "count",
+              `count-selected-text` = "{0} breeds selected"
+            ),
+            multiple = TRUE
+          )
+        ),
+        column(
+          width = 3,
+          shinyWidgets::pickerInput(
+            ns("sex_select"),
+            label = "Sex",
+            choices = sort(unique(pre_rank$sex)),
+            selected = sort(unique(pre_rank$sex)),
+            options = list(
+              `virtualScroll` = 10,
+              size = 10,
+              `actions-box` = TRUE,
+              `live-search` = TRUE,
+              `selected-text-format`= "count",
+              `count-selected-text` = "{0} sexes selected"
+            ),
+            multiple = TRUE
+          )
+        )
+      ),
+      fluidRow(
+        column(
           width = 12,
           shinydashboard::box(
             width = 12,
@@ -120,6 +158,13 @@ mod_ReadLoss_server <- function(id){
     # unclear if keeping version information in exports
     version <- "v0.9"
 
+    # common tissue colors from tissue data
+    tissue_levels <- unique(as.character(tissues$new_lab))
+    tissue_cols <- grDevices::colorRampPalette(
+      rev(RColorBrewer::brewer.pal(11, "Spectral"))
+    )(length(tissue_levels))
+    names(tissue_cols) <- tissue_levels
+
     source_selected <- reactive({
       proc_cts %>%
         dplyr::filter(source %in% input$source_select) %>%
@@ -147,8 +192,34 @@ mod_ReadLoss_server <- function(id){
       shinyWidgets::updatePickerInput(session, inputId = "sample_select", choices = choices)
     })
 
+    observeEvent(tissue_selected(), {
+      # update breed and sex options
+      shinyWidgets::updatePickerInput(
+        session,
+        inputId = "breed_select",
+        choices = sort(unique(tissue_selected()$breed)),
+        selected = sort(unique(tissue_selected()$breed))
+      )
+
+      shinyWidgets::updatePickerInput(
+        session,
+        inputId = "sex_select",
+        choices = sort(unique(tissue_selected()$sex)),
+        selected = sort(unique(tissue_selected()$sex))
+      )
+    })
+
+    # sample_selected <- reactive({
+    #   dplyr::filter(tissue_selected(), sample %in% input$sample_select)
+    # })
+
     sample_selected <- reactive({
-      dplyr::filter(tissue_selected(), sample %in% input$sample_select)
+      tissue_selected() %>%
+        dplyr::filter(
+          sample %in% input$sample_select,
+          breed %in% input$breed_select,
+          sex %in% input$sex_select
+        )
     })
 
     plt_df <- reactive({
@@ -160,13 +231,16 @@ mod_ReadLoss_server <- function(id){
           dplyr::summarise(
             tissue_mean = mean(count),
             lower = tissue_mean - stats::qnorm(0.975)*stats::sd(count),
-            upper = tissue_mean + stats::qnorm(0.975)*stats::sd(count)
+            upper = tissue_mean + stats::qnorm(0.975)*stats::sd(count),
+            .groups = 'drop'
           ) %>%
           dplyr::mutate(
             tissue_mean = round(tissue_mean, 2),
             lower = round(lower, 2),
             upper = round(upper, 2),
-            source = forcats::fct_relevel(source, "FAANG", "Primary")
+            source = forcats::fct_relevel(source, "FAANG", "Primary"),
+            # new_lab = forcats::fct_drop(factor(new_lab, levels = names(tissue_cols)))
+            new_lab = factor(new_lab, levels = intersect(names(tissue_cols), unique(new_lab)))
           )
       } else if(input$sum_type == "sample") {
         sample_selected() %>%
@@ -175,7 +249,9 @@ mod_ReadLoss_server <- function(id){
             sample, breed, sex, step, count
           ) %>%
           dplyr::mutate(
-            source_mod = forcats::fct_relevel(source_mod, "FAANG", "Primary")
+            source_mod = forcats::fct_relevel(source_mod, "FAANG", "Primary"),
+            # new_lab = forcats::fct_drop(factor(new_lab, levels = names(tissue_cols)))
+            new_lab = factor(new_lab, levels = intersect(names(tissue_cols), unique(new_lab)))
           )
       }
 
@@ -195,81 +271,78 @@ mod_ReadLoss_server <- function(id){
     })
 
     # common tissue colors from tissue data
-    tissue_cols <- grDevices::colorRampPalette(
-      rev(RColorBrewer::brewer.pal(11, "Spectral"))
-    )(length(unique(tissues$new_lab)))
-    names(tissue_cols) <- unique(levels(tissues$new_lab))
+    # tissue_cols <- grDevices::colorRampPalette(
+    #   rev(RColorBrewer::brewer.pal(11, "Spectral"))
+    # )(length(unique(tissues$new_lab)))
+    # names(tissue_cols) <- unique(levels(tissues$new_lab))
 
     output$line_chart <- plotly::renderPlotly({
       req(input$sum_type)
       validate(
         need(nrow(plt_df()) > 0, "no data available for the selected filters")
       )
-
-      if(input$sum_type == "tissue") {
-        p <- ggplot2::ggplot(plt_df(),
-                        ggplot2::aes(
-                          x = step,
-                          y = tissue_mean,
-                          color = new_lab,
-                          text = paste(
-                            "step:", step,
-                            "<br>tissue:", new_lab,
-                            "<br>mean:", tissue_mean
-                          ),
-                          group = new_lab
-                        )) +
-          ggplot2::facet_wrap(~ source, ncol = 3) +
-          ggplot2::geom_ribbon(ggplot2::aes(ymin = lower, ymax = upper, fill = new_lab), alpha = 0.3) +
-          ggplot2::geom_line(linewidth = 1, color = "black") +
-          ggplot2::geom_point(ggplot2::aes(fill = new_lab), shape = 21, color = "black") +
-          ggplot2::scale_color_manual(
-            values = tissue_cols
-          ) +
-          ggplot2::scale_fill_manual(
-            values = tissue_cols
-          ) +
-          ggplot2::scale_y_continuous(labels = scales::label_number_si()) +
-          ggplot2::theme_dark() +
-          ggplot2::theme(
-            axis.text.x = ggplot2::element_text(size = 8, angle = 45, vjust = 1, hjust = 1),
-            axis.text.y = ggplot2::element_text(size = 8),
-            axis.title = ggplot2::element_blank(),
-            # legend.position = "none"
-          )
-      } else if(input$sum_type == "sample") {
-        p <- ggplot2::ggplot(plt_df(),
-                        ggplot2::aes(
-                          x = step,
-                          y = count,
-                          color = new_lab,
-                          text = paste(
-                            "step:", step,
-                            "<br>tissue:", new_lab,
-                            "<br>count:", count
-                          ),
-                          group = tissue_sample
-                        )) +
-          ggplot2::facet_wrap(~ source_mod, ncol = 3) +
-          ggplot2::geom_line(linewidth = 1, color = "black") +
-          ggplot2::geom_point(ggplot2::aes(fill = new_lab), shape = 21, color = "black") +
-          ggplot2::scale_color_manual(
-            values = tissue_cols
-          ) +
-          ggplot2::scale_fill_manual(
-            values = tissue_cols
-          ) +
-          ggplot2::scale_y_continuous(labels = scales::label_number_si()) +
-          ggplot2::theme_dark() +
-          ggplot2::theme(
-            axis.text.x = ggplot2::element_text(size = 8, angle = 45, vjust = 1, hjust = 1),
-            axis.text.y = ggplot2::element_text(size = 8),
-            axis.title = ggplot2::element_blank(),
-          )
-      }
-      # p + ggplot2::theme(legend.position = "none")
-      plotly::ggplotly(p, tooltip = c("text")) %>%
-        plotly::layout(showlegend = FALSE)
+      suppressWarnings({
+        if(input$sum_type == "tissue") {
+          plot_cols <- tissue_cols[levels(plt_df()$new_lab)]
+          p <- ggplot2::ggplot(plt_df(),
+                          ggplot2::aes(
+                            x = step,
+                            y = tissue_mean,
+                            color = new_lab,
+                            text = paste(
+                              "step:", step,
+                              "<br>tissue:", new_lab,
+                              "<br>mean:", tissue_mean
+                            ),
+                            group = new_lab
+                          )) +
+            ggplot2::facet_wrap(~ source, ncol = 3) +
+            ggplot2::geom_ribbon(ggplot2::aes(ymin = lower, ymax = upper, fill = new_lab), alpha = 0.3) +
+            ggplot2::geom_line(linewidth = 1, color = "black") +
+            ggplot2::geom_point(ggplot2::aes(fill = new_lab), shape = 21, color = "black") +
+            ggplot2::scale_color_manual(values = plot_cols) +
+            ggplot2::scale_fill_manual(values = plot_cols) +
+            ggplot2::scale_y_continuous(labels = scales::label_number(scale_cut = scales::cut_short_scale())) +
+            # ggplot2::scale_y_continuous(labels = scales::label_number_si()) +
+            ggplot2::theme_dark() +
+            ggplot2::theme(
+              axis.text.x = ggplot2::element_text(size = 8, angle = 45, vjust = 1, hjust = 1),
+              axis.text.y = ggplot2::element_text(size = 8),
+              axis.title = ggplot2::element_blank(),
+              # legend.position = "none"
+            )
+        } else if(input$sum_type == "sample") {
+          plot_cols <- tissue_cols[levels(plt_df()$new_lab)]
+          p <- ggplot2::ggplot(plt_df(),
+                          ggplot2::aes(
+                            x = step,
+                            y = count,
+                            color = new_lab,
+                            text = paste(
+                              "step:", step,
+                              "<br>tissue:", new_lab,
+                              "<br>count:", count
+                            ),
+                            group = tissue_sample
+                          )) +
+            ggplot2::facet_wrap(~ source_mod, ncol = 3) +
+            ggplot2::geom_line(linewidth = 1, color = "black") +
+            ggplot2::geom_point(ggplot2::aes(fill = new_lab), shape = 21, color = "black") +
+            ggplot2::scale_color_manual(values = plot_cols) +
+            ggplot2::scale_fill_manual(values = plot_cols) +
+            ggplot2::scale_y_continuous(labels = scales::label_number(scale_cut = scales::cut_short_scale())) +
+            # ggplot2::scale_y_continuous(labels = scales::label_number_si()) +
+            ggplot2::theme_dark() +
+            ggplot2::theme(
+              axis.text.x = ggplot2::element_text(size = 8, angle = 45, vjust = 1, hjust = 1),
+              axis.text.y = ggplot2::element_text(size = 8),
+              axis.title = ggplot2::element_blank(),
+            )
+        }
+        # p + ggplot2::theme(legend.position = "none")
+        plotly::ggplotly(p, tooltip = c("text")) %>%
+          plotly::layout(showlegend = FALSE)
+      })
     })
 
     output$download_table <- downloadHandler(

@@ -89,6 +89,44 @@ mod_TopMirs_ui <- function(id){
         )
       ),
       fluidRow(
+        column(
+          width = 3,
+          shinyWidgets::pickerInput(
+            ns("breed_select"),
+            label = "Breed",
+            choices = sort(unique(uid_rpms$breed)),
+            selected = sort(unique(uid_rpms$breed)),
+            options = list(
+              `virtualScroll` = 10,
+              size = 10,
+              `actions-box` = TRUE,
+              `live-search` = TRUE,
+              `selected-text-format`= "count",
+              `count-selected-text` = "{0} breeds selected"
+            ),
+            multiple = TRUE
+          )
+        ),
+        column(
+          width = 3,
+          shinyWidgets::pickerInput(
+            ns("sex_select"),
+            label = "Sex",
+            choices = sort(unique(uid_rpms$sex)),
+            selected = sort(unique(uid_rpms$sex)),
+            options = list(
+              `virtualScroll` = 10,
+              size = 10,
+              `actions-box` = TRUE,
+              `live-search` = TRUE,
+              `selected-text-format`= "count",
+              `count-selected-text` = "{0} sexes selected"
+            ),
+            multiple = TRUE
+          )
+        )
+      ),
+      fluidRow(
         shinydashboard::box(
           width = 12,
           plotly::plotlyOutput(ns("tiss_plot"))
@@ -177,8 +215,37 @@ mod_TopMirs_server <- function(id, mirna_space){
       }
     })
 
+    observeEvent(source_selected(), {
+      # update breed and sex options
+      filtered_breeds <- unique(source_selected()$breed)
+      shinyWidgets::updatePickerInput(
+        session,
+        inputId = "breed_select",
+        choices = sort(filtered_breeds),
+        selected = sort(filtered_breeds)
+      )
+
+      filtered_sexes <- unique(source_selected()$sex)
+      shinyWidgets::updatePickerInput(
+        session,
+        inputId = "sex_select",
+        choices = sort(filtered_sexes),
+        selected = sort(filtered_sexes)
+      )
+    })
+
+    filtered_source <- reactive({
+      req(input$breed_select, input$sex_select)
+
+      source_selected() %>%
+        dplyr::filter(
+          breed %in% input$breed_select,
+          sex %in% input$sex_select
+        )
+    })
+
     tissue_selected <- reactive({
-      dplyr::filter(source_selected(), tissue %in% input$tiss_select)
+      dplyr::filter(filtered_source(), tissue %in% input$tiss_select)
     })
 
     tissue_summary <- reactive({
@@ -217,13 +284,14 @@ mod_TopMirs_server <- function(id, mirna_space){
     selected_all <- reactive({
       req(top_selected())
 
-      data <- tissue_selected() %>%
+      data <- filtered_source() %>%
         dplyr::filter(type %in% input$type_select) %>%
         dplyr::mutate(
-          mir_names_ordered = factor(mir_names, levels = unique(top_selected()))
+          mir_names_ordered = factor(mir_names, levels = unique(top_selected())),
+          tooltip_text = paste0("sample: ", sample, "<br>rpm: ", rpm)
         ) %>%
         dplyr::select(
-          id, mir_names, mir_names_ordered, parents, variants, type, rpm,
+          id, mir_names, mir_names_ordered, tooltip_text, parents, variants, type, rpm,
           system, tissue, new_lab, source, sample, breed, sex
         ) %>%
         dplyr::filter(mir_names %in% top_selected()) # was id
@@ -232,6 +300,7 @@ mod_TopMirs_server <- function(id, mirna_space){
     })
 
     selected_table <- reactive({
+      req(input$breed_select, input$sex_select)
       req(tissue_summary(), selected_all())
 
       if (input$sum_type == "tissue"){
@@ -249,7 +318,7 @@ mod_TopMirs_server <- function(id, mirna_space){
             tissue = new_lab
           ) %>%
           dplyr::select(
-            source, tissue, sample, mir_names, parents, variants, type, rpm
+            source, tissue, sample, breed, sex, mir_names, parents, variants, type, rpm
           )
       }
     })
@@ -257,39 +326,44 @@ mod_TopMirs_server <- function(id, mirna_space){
     output$tiss_plot <- plotly::renderPlotly({
       validate(
         need(nrow(selected_all()) > 0, "no data available for the selected filters"),
+        need(length(unique(selected_all()$mir_names_ordered)) > 0, "no miRNA names found"),
+        need(any(selected_all()$rpm != 0), "all RPM values are 0 for this selection")
       )
 
-      p <- ggplot2::ggplot(
-        selected_all(),
-        ggplot2::aes(
-          x = mir_names_ordered,
-          y = rpm,
-          fill = mir_names,
-          text = paste(
-            # "mir_names:", mir_names,
-            "<br>sample:", sample,
-            "<br>rpm:", rpm),
-          group = mir_names_ordered
-        )) +
-        ggplot2::geom_violin(alpha = 0.8) +
-        ggbeeswarm::geom_quasirandom(method = "smiley", width = 0.1) +
-        ggplot2::scale_fill_manual(
-          values = grDevices::colorRampPalette(
-            RColorBrewer::brewer.pal(6, "Accent")
-          )(input$top_n)
-        ) +
-        ggplot2::scale_y_continuous(labels = scales::label_comma()) +
-        ggplot2::labs(y = "Reads per million (RPM)") +
-        ggplot2::theme_light() +
-        ggplot2::theme(
-          axis.text.x = ggplot2::element_text(size = 10, angle = 45, vjust = 1, hjust = 1),
-          axis.title.x = ggplot2::element_blank(),
-          axis.text.y = ggplot2::element_text(size = 10),
-          axis.title.y = ggplot2::element_text(size = 10),
-          legend.position = "none",
-        )
+      suppressWarnings({
+        p <- ggplot2::ggplot(
+          selected_all(),
+          ggplot2::aes(
+            x = mir_names_ordered,
+            y = rpm,
+            fill = mir_names,
+            text = tooltip_text,
+            # text = paste(
+            #   "<br>sample:", sample,
+            #   "<br>rpm:", rpm
+            # ),
+            group = mir_names_ordered
+          )) +
+          ggplot2::geom_violin(alpha = 0.8) +
+          ggbeeswarm::geom_quasirandom(method = "smiley", width = 0.1) +
+          ggplot2::scale_fill_manual(
+            values = grDevices::colorRampPalette(
+              RColorBrewer::brewer.pal(6, "Accent")
+            )(input$top_n)
+          ) +
+          ggplot2::scale_y_continuous(labels = scales::label_comma()) +
+          ggplot2::labs(y = "Reads per million (RPM)") +
+          ggplot2::theme_light() +
+          ggplot2::theme(
+            axis.text.x = ggplot2::element_text(size = 10, angle = 45, vjust = 1, hjust = 1),
+            axis.title.x = ggplot2::element_blank(),
+            axis.text.y = ggplot2::element_text(size = 10),
+            axis.title.y = ggplot2::element_text(size = 10),
+            legend.position = "none",
+          )
 
-      plotly::ggplotly(p, tooltip = c("text"))
+        plotly::ggplotly(p, tooltip = c("text"))
+      })
     })
 
     output$download_plot <- downloadHandler(

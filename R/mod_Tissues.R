@@ -72,6 +72,44 @@ mod_Tissues_ui <- function(id){
         )
       ),
       fluidRow(
+        column(
+          width = 3,
+          shinyWidgets::pickerInput(
+            ns("breed_select"),
+            label = "Breed",
+            choices = sort(unique(tissues$breed)),
+            selected = sort(unique(tissues$breed)),
+            options = list(
+              `virtualScroll` = 10,
+              size = 10,
+              `actions-box` = TRUE,
+              `live-search` = TRUE,
+              `selected-text-format`= "count",
+              `count-selected-text` = "{0} breeds selected"
+            ),
+            multiple = TRUE
+          )
+        ),
+        column(
+          width = 3,
+          shinyWidgets::pickerInput(
+            ns("sex_select"),
+            label = "Sex",
+            choices = sort(unique(tissues$sex)),
+            selected = sort(unique(tissues$sex)),
+            options = list(
+              `virtualScroll` = 10,
+              size = 10,
+              `actions-box` = TRUE,
+              `live-search` = TRUE,
+              `selected-text-format`= "count",
+              `count-selected-text` = "{0} sexes selected"
+            ),
+            multiple = TRUE
+          )
+        )
+      ),
+      fluidRow(
         shinydashboard::box(
           width = 12,
           plotly::plotlyOutput(ns("tiss_plot"))
@@ -134,10 +172,39 @@ mod_Tissues_server <- function(id){
       }
     })
 
+    observeEvent(system_selected(), {
+      # update breed and sex options
+      filtered_breeds <- unique(system_selected()$breed)
+      shinyWidgets::updatePickerInput(
+        session,
+        inputId = "breed_select",
+        choices = sort(filtered_breeds),
+        selected = sort(filtered_breeds)
+      )
+
+      filtered_sexes <- unique(system_selected()$sex)
+      shinyWidgets::updatePickerInput(
+        session,
+        inputId = "sex_select",
+        choices = sort(filtered_sexes),
+        selected = sort(filtered_sexes)
+      )
+    })
+
+    # selected_all <- reactive({
+    #   system_selected() %>%
+    #     dplyr::filter(tissue %in% input$tiss_select) %>%
+    #     dplyr::select(system, tissue, new_lab, sample, source, breed, sex) # remove post_counts
+    # })
+
     selected_all <- reactive({
       system_selected() %>%
-        dplyr::filter(tissue %in% input$tiss_select) %>%
-        dplyr::select(system, tissue, new_lab, sample, source, breed, sex) # remove post_counts
+        dplyr::filter(
+          tissue %in% input$tiss_select,
+          breed %in% input$breed_select,
+          sex %in% input$sex_select
+        ) %>%
+        dplyr::select(system, tissue, new_lab, sample, source, breed, sex)
     })
 
     selected_table <- reactive({

@@ -79,6 +79,8 @@ usethis::use_data_raw(name = "isomir_rpm.isomirmap_exp_filt", open = FALSE)
 usethis::use_data_raw(name = "isomir_cts.isomirmap_exp_filt", open = FALSE)
 usethis::use_data_raw(name = "process_fastqs_counts", open = FALSE)
 
+usethis::use_data_raw(name = "mirgenedb_map", open = FALSE)
+usethis::use_r("mirgenedb_map")
 usethis::use_r("mirna_space_ids")
 
 ## Tests ----

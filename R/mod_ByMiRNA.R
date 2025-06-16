@@ -74,11 +74,51 @@ mod_ByMiRNA_ui <- function(id){
           width = 2,
           shinyWidgets::awesomeRadio(
             ns("sum_type"),
-            label = "Level",
-            choices = c("Sample" = "sample", "Tissue" = "tissue"),
+            label = "Display",
+            choices = c(
+              "miRNA/tissue" = "sample",
+              "Tissue summary" = "tissue"),
             inline = TRUE,
             width = "800px",
             selected = "tissue",
+          )
+        )
+      ),
+      fluidRow(
+        column(
+          width = 3,
+          shinyWidgets::pickerInput(
+            ns("breed_select"),
+            label = "Breed",
+            choices = unique(tissues$breed),
+            options = list(
+              `virtualScroll` = 10,
+              size = 10,
+              `actions-box` = TRUE,
+              `live-search` = TRUE,
+              `selected-text-format` = "count",
+              `count-selected-text` = "{0} breeds selected"
+            ),
+            multiple = TRUE,
+            selected = NULL
+          )
+        ),
+        column(
+          width = 3,
+          shinyWidgets::pickerInput(
+            ns("sex_select"),
+            label = "Sex",
+            choices = unique(tissues$sex),
+            options = list(
+              `virtualScroll` = 10,
+              size = 10,
+              `actions-box` = TRUE,
+              `live-search` = TRUE,
+              `selected-text-format` = "count",
+              `count-selected-text` = "{0} sexes selected"
+            ),
+            multiple = TRUE,
+            selected = NULL
           )
         )
       ),
@@ -162,6 +202,8 @@ mod_ByMiRNA_server <- function(id, mirna_space){
           dplyr::pull(id)
         data <- data %>%
           dplyr::filter(id %in% filter_ids)
+      } else if (mirna_space_val == "MirGeneDB-only") {
+        data <- data %>% dplyr::filter(id %in% mirgenedb_map$id)
       }
 
       return(data)
@@ -192,13 +234,65 @@ mod_ByMiRNA_server <- function(id, mirna_space){
         need(input$tiss_select, "please select at least one tissue")
       )
 
-      dplyr::filter(source_selected(), new_lab %in% input$tiss_select)
+      dplyr::filter(
+        source_selected(),
+        new_lab %in% input$tiss_select,
+        if (!is.null(input$breed_select)) breed %in% input$breed_select else TRUE,
+        if (!is.null(input$sex_select)) sex %in% input$sex_select else TRUE
+      )
+    })
+
+    # observeEvent(tissue_selected(), {
+    #   choices <- unique(source_selected()$mir_names)
+    #   shinyWidgets::updatePickerInput(session, inputId = "mirna_select", choices = choices)
+    # })
+    observeEvent(tissue_selected(), {
+      df <- tissue_selected()
+      shinyWidgets::updatePickerInput(
+        session,
+        "mirna_select",
+        choices = sort(unique(df$mir_names)),
+        selected = intersect(input$mirna_select, df$mir_names)
+      )
+    })
+
+    observeEvent(mirna_space(), {
+      df <- spaced_data()
+      shinyWidgets::updatePickerInput(
+        session,
+        "mirna_select",
+        choices = sort(unique(df$mir_names)),
+        selected = NULL
+      )
     })
 
     observeEvent(tissue_selected(), {
-      choices <- unique(source_selected()$mir_names)
-      shinyWidgets::updatePickerInput(session, inputId = "mirna_select", choices = choices)
+      df <- tissue_selected()
+      shinyWidgets::updatePickerInput(
+        session,
+        "breed_select",
+        choices = sort(unique(df$breed)),
+        selected = intersect(input$breed_select, df$breed)
+      )
     })
+
+    observeEvent(tissue_selected(), {
+      df <- tissue_selected()
+      shinyWidgets::updatePickerInput(
+        session,
+        "sex_select",
+        choices = sort(unique(df$sex)),
+        selected = intersect(input$sex_select, df$sex)
+      )
+    })
+
+    observeEvent(input$mirna_select, {
+      if (length(input$mirna_select) == 1) {
+        shinyWidgets::updateAwesomeRadio(session, "sum_type", selected = "sample")
+      } else if (length(input$mirna_select) > 1) {
+        shinyWidgets::updateAwesomeRadio(session, "sum_type", selected = "tissue")
+      }
+    }, ignoreInit = TRUE)
 
     mirna_selected <- reactive({
       # req(tissue_selected())

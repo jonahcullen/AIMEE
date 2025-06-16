@@ -7,8 +7,8 @@
 \format{
 A data frame with 2 columns:
 \describe{
-  \item{id}{Character. Unique identifier for each miRNA.}
-  \item{filter_type}{Character. The type of miRNA-space. It can be one of the following:
+  \item{id}{Unique identifier for each miRNA (character).}
+  \item{filter_type}{The type of miRNA-space (character). It can be one of the following:
   \itemize{
     \item \code{Exclusive repeat}: Indicates that the miRNA is exclusive and within a repeat region.
     \item \code{Exclusive}: Indicates that the miRNA is exclusive.

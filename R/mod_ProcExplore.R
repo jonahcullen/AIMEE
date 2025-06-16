@@ -52,6 +52,42 @@ mod_ProcExplore_ui <- function(id){
             multiple = TRUE,
             selected = NULL
           )
+        ),
+        column(
+          width = 3,
+          shinyWidgets::pickerInput(
+            ns("breed_select"),
+            label = "Breed",
+            choices = unique(tissues$breed),
+            options = list(
+              `virtualScroll` = 10,
+              size = 10,
+              `actions-box` = TRUE,
+              `live-search` = TRUE,
+              `selected-text-format` = "count",
+              `count-selected-text` = "{0} breeds selected"
+            ),
+            multiple = TRUE,
+            selected = NULL
+          )
+        ),
+        column(
+          width = 3,
+          shinyWidgets::pickerInput(
+            ns("sex_select"),
+            label = "Sex",
+            choices = unique(tissues$sex),
+            options = list(
+              `virtualScroll` = 10,
+              size = 10,
+              `actions-box` = TRUE,
+              `live-search` = TRUE,
+              `selected-text-format` = "count",
+              `count-selected-text` = "{0} sexes selected"
+            ),
+            multiple = TRUE,
+            selected = NULL
+          )
         )
       ),
       fluidRow(
@@ -139,6 +175,14 @@ mod_ProcExplore_server <- function(id){
       shinyWidgets::updatePickerInput(session, inputId = "tiss_select", choices = choices)
     })
 
+    observeEvent(input$tiss_select, {
+      df <- source_selected() %>%
+        dplyr::filter(tissue %in% input$tiss_select)
+
+      shinyWidgets::updatePickerInput(session, "breed_select", choices = unique(df$breed))
+      shinyWidgets::updatePickerInput(session, "sex_select", choices = unique(df$sex))
+    })
+
     tissue_selected <- reactive({
       dplyr::filter(proc_cts, tissue %in% input$tiss_select)
     })
@@ -186,6 +230,12 @@ mod_ProcExplore_server <- function(id){
       # print(paste("tmp:", paste(names(tmp), collapse = ", ")))
 
       proc_mirs <- proc_cts %>%
+        dplyr::filter(
+          source %in% input$source_select,
+          tissue %in% input$tiss_select,
+          if (!is.null(input$breed_select)) breed %in% input$breed_select else TRUE,
+          if (!is.null(input$sex_select)) sex %in% input$sex_select else TRUE
+        ) %>%
         tidyr::pivot_wider(names_from = step, values_from = count) %>%
         dplyr::left_join(tmp, by = "tissue_sample") %>%
         dplyr::mutate(
@@ -198,9 +248,24 @@ mod_ProcExplore_server <- function(id){
 
     centroids <- reactive({
       common_validate()
+      df <- plt_df()
 
       x_col <- quote_col_name(input$x_axis)
       y_col <- quote_col_name(input$y_axis)
+
+      if (!(input$x_axis %in% names(df)) || !(input$y_axis %in% names(df))) {
+        return(tibble::tibble(
+          tissue = character(),
+          !!input$x_axis := numeric(),
+          !!input$y_axis := numeric(),
+          se.X = numeric(),
+          se.Y = numeric(),
+          new_lab = character(),
+          tissue_pop = factor(),
+          tissue_alpha = numeric(),
+          tissue_name = character()
+        ))
+      }
 
       form <- stats::as.formula(paste("cbind(", x_col, ", ", y_col, ") ~ tissue"))
       means <- stats::aggregate(form, data = plt_df(), FUN = mean)
@@ -208,12 +273,11 @@ mod_ProcExplore_server <- function(id){
       form_se <- stats::as.formula(paste("cbind(se.X = ", x_col, ", se.Y = ", y_col, ") ~ tissue"))
       se <- stats::aggregate(form_se, data = plt_df(), FUN = f)
 
-      df <- merge(means, se, by = "tissue") %>%
+      dplyr::left_join(means, se, by = "tissue") %>%
         dplyr::left_join(
-          plt_df() %>%
-            dplyr::select(tissue, new_lab) %>%
-            dplyr::distinct(),
-          by = "tissue") %>%
+          df %>% dplyr::select(tissue, new_lab) %>% dplyr::distinct(),
+          by = "tissue"
+        ) %>%
         dplyr::mutate(
           se.X = round(se.X, 2),
           se.Y = round(se.Y, 2),
@@ -223,17 +287,19 @@ mod_ProcExplore_server <- function(id){
           tissue_alpha = ifelse(tissue %in% input$tiss_select, 1, 0.2),
           tissue_name = ifelse(tissue %in% input$tiss_select, as.character(new_lab), "")
         )
-
-      return(df)
     })
 
     filtered_tiss_table <- reactive({
       common_validate()
+      df <- plt_df()
+      req(input$x_axis %in% names(df), input$y_axis %in% names(df))
 
-      plt_df() %>%
+      df %>%
         dplyr::filter(
-          source %in% input$source_select &
-            tissue %in% input$tiss_select
+          source %in% input$source_select,
+          tissue %in% input$tiss_select,
+          if (!is.null(input$breed_select)) breed %in% input$breed_select else TRUE,
+          if (!is.null(input$sex_select)) sex %in% input$sex_select else TRUE
         ) %>%
         dplyr::select(
           source, tissue, new_lab, sample, breed, sex,
@@ -244,8 +310,11 @@ mod_ProcExplore_server <- function(id){
 
     filtered_cent_table <- reactive({
       common_validate()
+      df <- centroids()
+      req(input$x_axis %in% names(df), input$y_axis %in% names(df))
 
-      centroids() %>%
+      # centroids() %>%
+      df %>%
         dplyr::filter(
           # source %in% input$source_select &
           tissue %in% input$tiss_select

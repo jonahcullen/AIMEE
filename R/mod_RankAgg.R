@@ -82,6 +82,44 @@ mod_RankAgg_ui <- function(id){
       ),
       fluidRow(
         column(
+          width = 3,
+          shinyWidgets::pickerInput(
+            ns("breed_select"),
+            label = "Breed",
+            choices = unique(tissues$breed),
+            options = list(
+              `virtualScroll` = 10,
+              size = 10,
+              `actions-box` = TRUE,
+              `live-search` = TRUE,
+              `selected-text-format` = "count",
+              `count-selected-text` = "{0} breeds selected"
+            ),
+            multiple = TRUE,
+            selected = NULL
+          )
+        ),
+        column(
+          width = 3,
+          shinyWidgets::pickerInput(
+            ns("sex_select"),
+            label = "Sex",
+            choices = unique(tissues$sex),
+            options = list(
+              `virtualScroll` = 10,
+              size = 10,
+              `actions-box` = TRUE,
+              `live-search` = TRUE,
+              `selected-text-format` = "count",
+              `count-selected-text` = "{0} sexes selected"
+            ),
+            multiple = TRUE,
+            selected = NULL
+          )
+        )
+      ),
+      fluidRow(
+        column(
           width = 12,
           shinydashboard::box(
             width = 12,
@@ -202,12 +240,45 @@ mod_RankAgg_server <- function(id, mirna_space){
         need(input$tiss_select, "please select at least one tissue"),
       )
 
-      dplyr::filter(source_selected(), tissue %in% input$tiss_select)
+      source_selected() %>%
+        dplyr::filter(
+          tissue %in% input$tiss_select,
+          if (!is.null(input$breed_select)) breed %in% input$breed_select else TRUE,
+          if (!is.null(input$sex_select)) sex %in% input$sex_select else TRUE
+        )
+    })
+
+    # observeEvent(tissue_selected(), {
+    #   choices <- unique(tissue_selected()$sample)
+    #   shinyWidgets::updatePickerInput(session, inputId = "sample_select", choices = choices)
+    # })
+
+    observeEvent(tissue_selected(), {
+      df <- tissue_selected()
+
+      current_samples <- input$sample_select
+      valid_samples <- intersect(current_samples, unique(df$sample))
+
+      shinyWidgets::updatePickerInput(session, "sample_select",
+        choices = sort(unique(df$sample)),
+        selected = valid_samples
+      )
     })
 
     observeEvent(tissue_selected(), {
-      choices <- unique(tissue_selected()$sample)
-      shinyWidgets::updatePickerInput(session, inputId = "sample_select", choices = choices)
+      df <- tissue_selected()
+
+      shinyWidgets::updatePickerInput(session, "breed_select",
+        choices = sort(unique(df$breed)),
+        selected = intersect(input$breed_select, df$breed)
+      )
+
+      shinyWidgets::updatePickerInput(
+        session,
+        "sex_select",
+        choices = sort(unique(df$sex)),
+        selected = intersect(input$sex_select, df$sex)
+      )
     })
 
     sample_selected <- reactive({

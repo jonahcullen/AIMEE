@@ -14,6 +14,34 @@ app_server <- function(input, output, session) {
     input$exclusive_choice
   })
 
+  # update miRNA-space picker input subtext dynamically
+  observe({
+    counts <- list(
+      "All" = nrow(mirna_space_ids),
+      "Exclusive" = mirna_space_ids %>%
+        dplyr::filter(filter_type == "Exclusive") %>%
+        dplyr::pull(id) %>% length(),
+      "Exclusive repeat" = mirna_space_ids %>%
+        dplyr::filter(filter_type == "Exclusive & repeat") %>%
+        dplyr::pull(id) %>% length(),
+      "Ambiguous" = mirna_space_ids %>%
+        dplyr::filter(filter_type == "Ambiguous") %>%
+        dplyr::pull(id) %>% length(),
+      "Ambiguous repeat" = mirna_space_ids %>%
+        dplyr::filter(filter_type == "Ambiguous & repeat") %>%
+        dplyr::pull(id) %>% length(),
+      "MirGeneDB-only" = mirgenedb_map$id %>% unique() %>% length()
+    )
+
+    shinyWidgets::updatePickerInput(
+      session,
+      inputId = "exclusive_choice",
+      choices = names(counts),
+      selected = isolate(input$exclusive_choice),
+      choicesOpt = list(subtext = paste0("(n=", counts, ")"))
+    )
+  })
+
   # application server logic
   mod_Home_server("Home_1")
   mod_Export_server("Export_1")
@@ -26,3 +54,5 @@ app_server <- function(input, output, session) {
   mod_ByMiRNA_server("ByMiRNA_1", mirna_space)
   mod_Search_server("Search_1")
 }
+
+

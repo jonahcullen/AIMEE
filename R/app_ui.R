@@ -22,19 +22,28 @@ app_ui <- function(request) {
           shinydashboard::menuItem(text = "Dashboard", tabName = "dashboard"),
           div(
             style = "padding: 5px; margin-bottom: -10px;",
+            # shinyWidgets::pickerInput(
+            #   inputId = "exclusive_choice",
+            #   label = tags$span(style = "font-size: 12px;", "miRNA-space:"),
+            #   choices = c("All", "Exclusive", "Exclusive repeat", "Ambiguous", "Ambiguous repeat", "MirGeneDB-only"),
+            #   choicesOpt = list(
+            #     subtext = c("(n=6951)", "(n=5498)", "(n=116)", "(n=853)", "(n=484)", "(n=259)")
+            #   ),
+            #   options = shinyWidgets::pickerOptions(
+            #     container = "body",
+            #     style = "btn-sm"
+            #   ),
+            #   width = "100%",
+            #   selected = "ALL"
+            # )
             shinyWidgets::pickerInput(
               inputId = "exclusive_choice",
               label = tags$span(style = "font-size: 12px;", "miRNA-space:"),
-              choices = c("All", "Exclusive", "Exclusive repeat", "Ambiguous", "Ambiguous repeat"),
-              choicesOpt = list(
-                subtext = c("(n=6951)", "(n=5498)", "(n=116)", "(n=853)", "(n=484)")
-              ),
-              options = shinyWidgets::pickerOptions(
-                container = "body",
-                style = "btn-sm"
-              ),
+              choices = NULL,
+              choicesOpt = list(),
+              options = shinyWidgets::pickerOptions(container = "body", style = "btn-sm"),
               width = "100%",
-              selected = "ALL"
+              selected = "All"
             )
           ),
           shinydashboard::menuItem(text = "By Tissue", tabName = "by_tissue", icon = icon("lungs"),
