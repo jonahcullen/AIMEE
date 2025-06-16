@@ -17,12 +17,13 @@ repositories. All samples were processed using the pipeline FARmiR
 (<https://github.com/jonahcullen/FARmiR>).
 
 AIMEE is a Shiny application built using the
-[**golem**](https://golemverse.org/) framework. The app enables users
-to - Filter and compare expression by tissue, breed, sex, and data
-source - Explore canonical and non-canoncial miRNA expression patterns -
-Evaluate isomiRs across different processing types - Visualize top
-miRNAs per tissue and investigate overlap - Download expression tables
-plots
+[**golem**](https://golemverse.org/) framework. The app enables users to
+
+-   Filter and compare expression by tissue, breed, sex, and data source
+-   Explore canonical and non-canoncial miRNA expression patterns
+-   Evaluate isomiRs across different processing types
+-   Visualize top miRNAs per tissue and investigate overlap
+-   Download expression tables plots
 
 Detailed descriptions and usage guidance are provided within the app!
 
