@@ -1,4 +1,3 @@
-
 <!-- README.md is generated from README.Rmd. Please edit that file -->
 
 # AIMEE
@@ -17,27 +16,33 @@ horses, 4 FAANG Thoroughbreds, and 158 samples from public data
 repositories. All samples were processed using the pipeline FARmiR
 (<https://github.com/jonahcullen/FARmiR>).
 
+AIMEE is a Shiny application built using the
+[**golem**](https://golemverse.org/) framework. The app enables users
+to - Filter and compare expression by tissue, breed, sex, and data
+source - Explore canonical and non-canoncial miRNA expression patterns -
+Evaluate isomiRs across different processing types - Visualize top
+miRNAs per tissue and investigate overlap - Download expression tables
+plots
+
+Detailed descriptions and usage guidance are provided within the app!
+
 ## Installation
 
 You can install the development version of AIMEE like so:
 
-``` r
-# install devtools if you have not already
-install.packages("devtools")
+    # install devtools if you have not already
+    install.packages("devtools")
 
-# install package from github
-devtools::install_github("jonahcullen/AIMEE")
-```
+    # install package from github
+    devtools::install_github("jonahcullen/AIMEE")
 
 ## Example
 
-This is a basic example which shows you how to solve a common problem:
+To open the AIMEE browser:
 
-``` r
-library(AIMEE)
-run_app()
-## basic example code
-```
+    library(AIMEE)
+    run_app()
+    ## basic example code
 
 ## Code of Conduct
 
